@@ -309,6 +309,7 @@ renderGraph(g)
 #Results
 #Shows the perturbation propagation on the Thyroid cancer signaling pathway
 #It's basically a type of network
+#Currently the resolution is meh, but that can be adjusted with the png() function, among others
 
 
 
