@@ -229,7 +229,7 @@ head(ref)
 #Conference on Machine Learning Applications (ICMLA),). There are two alternative formulas to incorporate gene significance.
 #these are alpha1MR and alphaMLG
 #To set the weight using these calculations, use the following function
-#Here we set the weights using the alphaMLG formula in accordance with the pv (slection of differentially expressed genes of significance 1% (via p-value))
+#Here we set the weights using the alphaMLG formula in accordance with the pv (selection of differentially expressed genes of significance 1% (via p-value))
 kpg <- setNodeWeights(kpg, weights = alphaMLG(pv), defaultWeight = 1)
 
 #Print the first few edges of node hsa04110
@@ -243,7 +243,7 @@ head(nodeWeights(kpg[["path:hsa04110"]]))
 #At this point, all the elements of the analysis have been performed (of course we can remove the prints)
 #The critical parts are kpg, fc, and ref
 
-#The pe function is called to perform the analysis, the accuract is determined by nboot (bigger=more accurate)
+#The pe function is called to perform the analysis, the accuracy is determined by nboot (bigger=more accurate)
 #nboot significes number of bootstrap iterations
 #This is basically the number of times a statistical test is performed with random sampling replacement, the more it is performed, the more accurate it gets
 #Note: verbose should be set to false in final product
