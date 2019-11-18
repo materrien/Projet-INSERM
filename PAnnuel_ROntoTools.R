@@ -44,7 +44,7 @@ head(names(kpg))
 #In this case, it is the mitotic cell cycle for humans (of course)
 #Here is the website 
 #https://www.genome.jp/dbget-bin/www_bget?pathway+hsa04110
-#This result gives the nuber of nodes and edges
+#This result gives the number of nodes and edges
 
 kpg[["path:hsa04110"]]
 #Result
@@ -83,7 +83,7 @@ head(edges(kpg[["path:hsa04110"]]))
 #character(0)
 
 
-#My understanding of nodes and edges is a little fuzzy, however I think they are best explaiend in the following way
+#My understanding of nodes and edges is a little fuzzy, however I think they are best explained in the following way
 #Nodes --> representation of biomolecules, such as proteins, genes and metabolites
 #Edges --> representation of the types of associations between two nodes, such as physical interactions and co-expression of mRNAs
 #Thus it appears that calling 'edges' actually gives the other nodes that a specific node connects to.
@@ -116,9 +116,9 @@ head(edgeData(kpg[["path:hsa04110"]], attr = "subtype"))
 
 #Basically, no weights are ever attributed to pathways, it will be up to us to figure out which weight distribution to use
 #The details of its utility are still a little fuzzy, but it shouldn't be too hard to figure out.
-kpg <- setEdgeWeights(kpg, edgeTypeAttr = "subtype",edgeWeightByType = list(activation = 1, inhibition = -1,expression = 1, repression = -1),defaultWeight = 0)
+kpg <- setEdgeWeights(kpg, edgeTypeAttr = "subtype",edgeWeightByType = list(activation = 1, inhibition = -1, expression = 1, repression = -1),defaultWeight = 0)
 #Results
-#kpg now contains a list of grpahs with weighted edges
+#kpg now contains a list of graphs with weighted edges
 
 
 #This simply shows us that weights have been given as intended.
@@ -157,8 +157,6 @@ head(kpn)
 #"Pentose and glucuronate interconversions"     "Fructose and mannose metabolism"           "Galactose metabolism" 
 
 
-
-
 ###########################################################################################################################################################
 
 
@@ -184,7 +182,7 @@ head(top)
 
 
 #This is how we would select differentially expressed genes at 1% and save their fold change in a vector
-#fc and theirp-values in a vector 'pv'
+#fc and their p-values in a vector 'pv'
 fc <- top$logFC[top$adj.P.Val <= .01]
 names(fc) <- top$entrez[top$adj.P.Val <= .01]
 head(fc)
@@ -193,7 +191,7 @@ head(fc)
 #-1.0175141 -3.6479368  3.2807123 -0.9792301 -1.7733135 -0.9447467 
 
 
-#Same thing but with p value
+#Same thing but with p-value
 pv <- top$P.Value[top$adj.P.Val <= .01]
 names(pv) <- top$entrez[top$adj.P.Val <= .01]
 head(pv)
@@ -240,11 +238,12 @@ head(nodeWeights(kpg[["path:hsa04110"]]))
 
 
 ###########################################################################################################################################################
+
 #At this point, all the elements of the analysis have been performed (of course we can remove the prints)
 #The critical parts are kpg, fc, and ref
 
-#The pe function is called to perform the analysis, the accuract is determined by nboot (bigger=more accurate)
-#nboot significes number of bootstrap iterations
+#The pe function is called to perform the analysis, the accuracy is determined by nboot (bigger=more accurate)
+#nboot signifies number of bootstrap iterations
 #This is basically the number of times a statistical test is performed with random sampling replacement, the more it is performed, the more accurate it gets
 #Note: verbose should be set to false in final product
 peRes <- pe(x = fc, graphs = kpg, ref = ref, nboot = 200, verbose = TRUE)
@@ -278,9 +277,9 @@ head(Summary(peRes, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc =
 ###########################################################################################################################################################
 
 #Here starts the section of graphical representation
-#Of course I won't be able to link the pictures here, i'll describe them as best as possible.
+#Of course I won't be able to link the pictures here, I'll describe them as best as possible.
 
-#plot function de R pour tout les résultats, c'est très moche.
+#plot function de R pour tout les rï¿½sultats, c'est trï¿½s moche.
 plot(peRes)
 
 #This plot shows pathway level statistics
