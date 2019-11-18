@@ -310,7 +310,18 @@ renderGraph(g)
 #Shows the perturbation propagation on the Thyroid cancer signaling pathway
 #It's basically a type of network
 #Currently the resolution is meh, but that can be adjusted with the png() function, among others
-#TEst
 
 
+###########################################################################################################################################################
 
+
+#If we wanted to do signalling pathway analysis, we would use the following function
+#pDisRes <- pDis(x = fc, graphs = kpg, ref = ref, nboot = 200, verbose = FALSE)
+#Results
+#                   pathNames       ppDis ppDis.fdr
+#path:hsa04976 Bile secretion 0.004975124 0.2437811
+#path:hsa04390 Hippo signaling pathway 0.009950249 0.2437811
+#path:hsa05030 Cocaine addiction 0.009950249 0.2437811
+#path:hsa05142 Chagas disease (American trypanosomiasis) 0.009950249 0.2437811
+#path:hsa05143 African trypanosomiasis 0.009950249 0.2437811
+#path:hsa05031 Amphetamine addiction 0.014925373 0.2437811
