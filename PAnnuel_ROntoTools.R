@@ -301,7 +301,7 @@ plot(peRes@pathways[["path:hsa05216"]], type = "boot")
 #This set of functions allows the visualization of the propagation across the pathway
 #It is all defined by the path:hsa05216, which is the 'thyroid cancer' pathway
 dev.new()
-pdf("Testing_pdf_output.png")
+pdf("Testing_pdf_output.pdf")
 
 p <- peRes@pathways[["path:hsa05216"]]
 g <- layoutGraph(p@map, layoutType = "dot")
