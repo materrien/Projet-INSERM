@@ -10,9 +10,18 @@ library(apeglm)
 
 
 
-count_File_Q1 <- read.csv(file = "C:\\Users\\yohan\\Desktop\\Analyse_Bioinformatique\\TCGA_GBM\\True_COUNTS_NORMAL_AGE_SUBSET_10_50_Formatted_CSV_VERSION.csv",check.names=FALSE)
-count_File_Q4 <-read.csv(file = "C:\\Users\\yohan\\Desktop\\Analyse_Bioinformatique\\TCGA_GBM\\True_COUNTS_NORMAL_AGE_SUBSET_69_89_Formatted_CSV_VERSION.csv",check.names=FALSE)
+count_File_Q1 <- read.csv(file = "C:\\Users\\yohan\\Desktop\\Analyse_Bioinformatique\\TCGA_GBM\\CSVs\\True_COUNTS_NORMAL_AGE_SUBSET_10_50_Formatted_CSV_VERSION.csv",check.names=FALSE)
+count_File_Q4 <-read.csv(file = "C:\\Users\\yohan\\Desktop\\Analyse_Bioinformatique\\TCGA_GBM\\CSVs\\True_COUNTS_NORMAL_AGE_SUBSET_69_89_Formatted_CSV_VERSION.csv",check.names=FALSE)
 
+variable_condition_1 <- "young"
+variable_condition_2 <- "old"
+
+#Directory Workplace!
+setwd("C:\\Users\\yohan\\Desktop")
+
+maindir <- getwd()
+dir.create(file.path(maindir, "Normal_Results"))
+setwd(file.path(maindir, "Normal_Results"))
 
 #Keeping as a precaution
 count_File_Q1<-count_File_Q1[complete.cases(count_File_Q1),]
@@ -21,10 +30,6 @@ count_File_Q1<-count_File_Q1[!(count_File_Q1$Gene=="0.0"),]
 count_File_Q4<-count_File_Q4[complete.cases(count_File_Q4),]
 count_File_Q4<-count_File_Q4[!(count_File_Q4$Gene=="0.0"),]
 
-
-
-#Directory Workplace!
-setwd("C:\\Users\\yohan\\Desktop\\Analyse_Bioinformatique\\TCGA_GBM\\R_Work_Folder")
 
 
 numQ1 <- ncol(count_File_Q1)-1
@@ -56,7 +61,7 @@ merged_quartiles <- as.matrix(merged_quartiles)
 
 
 #Assign Condition Q1 to all of the columns/samples/patients
-condition <- factor(c(rep("Young", numQ1),rep("Old",numQ4)))
+condition <- factor(c(rep(variable_condition_1, numQ1),rep(variable_condition_2,numQ4)))
 
 
 ####################################################################################
@@ -75,8 +80,7 @@ dds <- DESeq(dds)
 
 ###################################################################################################################################
 
-dir.create(file.path(maindir, "Normal_Results"))
-setwd(file.path(maindir, "Normal_Results"))
+
 res <- results(dds)
 
 #Could be used if they want to reduce?
@@ -91,7 +95,7 @@ resdata <- merge(as.data.frame(res), as.data.frame(counts(dds, normalized=TRUE))
 names(resdata)[1] <- "Gene"
 head(resdata)
 ## Write results
-write.csv(resdata, file="diffexpr_results_Insert_Name.csv")
+write.csv(resdata, file=paste("diffexpr_results",variable_condition_1,"vs",variable_condition_2,".csv"))
 
 ## MA plot with with text
 ###################################################################################################################################
@@ -103,7 +107,7 @@ maplot <- function (res, thresh=0.05, labelsig=TRUE, textcx=1, ...) {
     with(subset(res, padj<thresh), textxy(baseMean, log2FoldChange, labs=Gene, cex=textcx, col=2))
   }
 }
-png("diffexpr_maplot_Insert_Name_text.png", 7500, 7000, pointsize=15)
+png(paste("diffexpr_maplot_",variable_condition_1,"vs",variable_condition_2,"_text.png"), 7500, 7000, pointsize=15)
 maplot(resdata, main="MA Plot")
 dev.off()
 
@@ -117,7 +121,7 @@ maplot <- function (res, thresh=0.05, labelsig=TRUE, textcx=1, ...) {
     with(subset(res, padj<thresh))#, textxy(baseMean, log2FoldChange, labs=Gene, cex=textcx, col=2))
   }
 }
-png("diffexpr_maplot_GBM_Insert_Name_text.png", 2500, 2000, pointsize=15)
+png(paste("diffexpr_maplot_",variable_condition_1,"vs",variable_condition_2,"_text.png"), 2500, 2000, pointsize=15)
 maplot(resdata, main="MA Plot")
 dev.off()
 
@@ -135,7 +139,7 @@ volcanoplot <- function (res, lfcthresh=2, sigthresh=0.05, main="Volcano Plot", 
   }
   legend(legendpos, xjust=1, yjust=1, legend=c(paste("FDR<",sigthresh,sep=""), paste("|LogFC|>",lfcthresh,sep=""), "both"), pch=20, col=c("red","orange","green"))
 }
-png("diffexpr_volcanoplot_Insert_Name_Text.png", 5200, 5000, pointsize=20)
+png(paste("diffexpr_volcanoplot_",variable_condition_1,"vs",variable_condition_2,"_Text.png"), 5200, 5000, pointsize=20)
 volcanoplot(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5))
 dev.off()
 
@@ -147,21 +151,21 @@ volcanoplot <- function (res, lfcthresh=2, sigthresh=0.05, main="Volcano Plot", 
   with(subset(res, abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="orange", ...))
   with(subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="green", ...))
   x <-subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh)
-  write.csv(x,file = "Insert_Name_RESULTS_VOLCANO.csv")
+  write.csv(x,file = paste(variable_condition_1,"vs",variable_condition_2,"_RESULTS_VOLCANO.csv"))
   if (labelsig) {
     require(calibrate)
     with(subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh))#, textxy(log2FoldChange, -log10(pvalue), labs=Gene, cex=textcx, ...))
   }
   legend(legendpos, xjust=1, yjust=1, legend=c(paste("FDR<",sigthresh,sep=""), paste("|LogFC|>",lfcthresh,sep=""), "both"), pch=20, col=c("red","orange","green"))
 }
-png("diffexpr_volcanoplot_Insert_Name_No_Text.png", 1200, 1000, pointsize=20)
+png(paste("diffexpr_volcanoplot_",variable_condition_1,"vs",variable_condition_2,"_No_Text.png"), 1200, 1000, pointsize=20)
 volcanoplot(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5))
 dev.off()
 
 ###################################################################################################################################
 #FOR THE HEAT MAP
 
-file_heat_map <-  read.csv(file = "Insert_Name_RESULTS_VOLCANO.csv",check.names=FALSE)
+file_heat_map <-  read.csv(file = paste(variable_condition_1,"vs",variable_condition_2,"_RESULTS_VOLCANO.csv"),check.names=FALSE)
 
 resUpReg= file_heat_map[which(file_heat_map$log2FoldChange<0),] #Get the upregulated genes
 resDownReg= file_heat_map[which(file_heat_map$log2FoldChange>0),]#Get the downregulated
@@ -171,8 +175,7 @@ Downreg <- head(resDownReg[order(resDownReg$padj),],30)
 rownames(Downreg)=Downreg$Gene
 gene_list <- rownames(Upreg)
 gene_list <- append(gene_list,rownames(Downreg))
-View(gene_list)
-write.table(gene_list,file="gene_list_Insert_Name_Most_Significant.txt")
+write.table(gene_list,file=paste("gene_list_",variable_condition_1,"vs",variable_condition_2,"_Most_Significant.txt"))
 
 ###################################################################################################################################
 
