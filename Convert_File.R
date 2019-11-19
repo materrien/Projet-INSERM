@@ -15,7 +15,7 @@ for (g in 1:length(newdata[[1]])) {
   query = paste("http://rest.kegg.jp/find/hsa/",newdata$Id[g],sep="")
   result = getURL(query)
   hsa = c(hsa, strsplit(result,"\t")[[1]][1])
-}
+  }
 
 # Squash them together
 newdata <- cbind(newdata, hsa)
