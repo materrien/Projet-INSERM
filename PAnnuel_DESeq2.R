@@ -22,7 +22,7 @@ variable_condition_2 <- "old"
 
 #Do they wan to generate MA plots and volcano plots?
 do_MA_plot <-TRUE
-do_Volcano_Plot <- FALSE
+do_Volcano_Plot <- TRUE
 
 
 #Directory set up, will it be usefull?
@@ -115,35 +115,44 @@ write.csv(resdata, file=paste("diffexpr_results",variable_condition_1,"vs",varia
 ## MA plot with with text
 ###################################################################################################################################
 maplot <- function (res, thresh=0.05, labelsig=TRUE, textcx=1, ...) {
-  with(res, plot(baseMean, log2FoldChange, pch=20, cex=.5, log="x", ...))
-  with(subset(res, padj<thresh), points(baseMean, log2FoldChange, col="red", pch=20, cex=1.5))
-  if (labelsig) {
-    require(calibrate)
-    with(subset(res, padj<thresh), textxy(baseMean, log2FoldChange, labs=Gene, cex=textcx, col=2))
+  tryCatch({
+    with(res, plot(baseMean, log2FoldChange, pch=20, cex=.5, log="x", ...))
+    with(subset(res, padj<thresh), points(baseMean, log2FoldChange, col="red", pch=20, cex=1.5))
+    if (labelsig) {
+      require(calibrate)
+      with(subset(res, padj<thresh), textxy(baseMean, log2FoldChange, labs=Gene, cex=textcx, col=2))
   }
+  },error=function(error_message){
+  })
 }
+
+
 if (do_MA_plot==TRUE){
-  png(paste("diffexpr_maplot_",variable_condition_1,"vs",variable_condition_2,"_text.png"), 7500, 7000, pointsize=15)
-  maplot(resdata, main="MA Plot")
-  dev.off()
+    png(paste("diffexpr_maplot_",variable_condition_1,"vs",variable_condition_2,"_Text.png"), 7500, 7000, pointsize=15)
+    suppressWarnings(maplot(resdata, main="MA Plot"))
+    invisible(dev.off())
 }
 
 
 ## MA plot with no text
 ###################################################################################################################################
 maplot <- function (res, thresh=0.05, labelsig=TRUE, textcx=1, ...) {
-  with(res, plot(baseMean, log2FoldChange, pch=20, cex=.5, log="x", ...))
-  with(subset(res, padj<thresh), points(baseMean, log2FoldChange, col="red", pch=20, cex=1.5))
-  if (labelsig) {
-    require(calibrate)
-    with(subset(res, padj<thresh))#, textxy(baseMean, log2FoldChange, labs=Gene, cex=textcx, col=2))
+  tryCatch({
+    with(res, plot(baseMean, log2FoldChange, pch=20, cex=.5, log="x", ...))
+    with(subset(res, padj<thresh), points(baseMean, log2FoldChange, col="red", pch=20, cex=1.5))
+    if (labelsig) {
+      require(calibrate)
+      with(subset(res, padj<thresh))#, textxy(baseMean, log2FoldChange, labs=Gene, cex=textcx, col=2))
   }
+  },error=function(error_message){
+  })
 }
 
+
 if (do_MA_plot==TRUE){
-  png(paste("diffexpr_maplot_",variable_condition_1,"vs",variable_condition_2,"_text.png"), 2500, 2000, pointsize=15)
-  maplot(resdata, main="MA Plot")
-  dev.off()
+    png(paste("diffexpr_maplot_",variable_condition_1,"vs",variable_condition_2,"_No_Text.png"), 2500, 2000, pointsize=15)
+    suppressWarnings(maplot(resdata, main="MA Plot"))
+    invisible(dev.off())
 }
 
 
@@ -151,44 +160,54 @@ if (do_MA_plot==TRUE){
 ## Volcano plot with "significant" genes in green with text
 ###################################################################################################################################
 volcanoplot <- function (res, lfcthresh=2, sigthresh=0.05, main="Volcano Plot", legendpos="bottomright", labelsig=TRUE, textcx=1, ...) {
-  with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main=main, ...))
-  with(subset(res, padj<sigthresh ), points(log2FoldChange, -log10(pvalue), pch=20, col="red", ...))
-  with(subset(res, abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="orange", ...))
-  with(subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="green", ...))
-  if (labelsig) {
-    require(calibrate)
-    with(subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh), textxy(log2FoldChange, -log10(pvalue), labs=Gene, cex=textcx, ...))
-  }
-  legend(legendpos, xjust=1, yjust=1, legend=c(paste("FDR<",sigthresh,sep=""), paste("|LogFC|>",lfcthresh,sep=""), "both"), pch=20, col=c("red","orange","green"))
+  tryCatch({
+    with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main=main, ...))
+    with(subset(res, padj<sigthresh ), points(log2FoldChange, -log10(pvalue), pch=20, col="red", ...))
+    with(subset(res, abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="orange", ...))
+    with(subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="green", ...))
+    if (labelsig) {
+      require(calibrate)
+      with(subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh), textxy(log2FoldChange, -log10(pvalue), labs=Gene, cex=textcx, ...))
+    }
+    legend(legendpos, xjust=1, yjust=1, legend=c(paste("FDR<",sigthresh,sep=""), paste("|LogFC|>",lfcthresh,sep=""), "both"), pch=20, col=c("red","orange","green"))
+  },error=function(error_message){
+  })
 }
+
+
 if(do_Volcano_Plot==TRUE){
-  png(paste("diffexpr_volcanoplot_",variable_condition_1,"vs",variable_condition_2,"_Text.png"), 5200, 5000, pointsize=20)
-  volcanoplot(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5))
-  dev.off()
+    png(paste("diffexpr_volcanoplot_",variable_condition_1,"vs",variable_condition_2,"_Text.png"), 5200, 5000, pointsize=20)
+    suppressWarnings(volcanoplot(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5)))
+    invisible(dev.off())
 }
 
 
 ## Volcano plot with "significant" genes in green with no text active_reformed
 ###################################################################################################################################
 volcanoplot <- function (res, lfcthresh=2, sigthresh=0.05, main="Volcano Plot", legendpos="bottomright", labelsig=TRUE, textcx=1, ...) {
-  with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main=main, ...))
-  with(subset(res, padj<sigthresh ), points(log2FoldChange, -log10(pvalue), pch=20, col="red", ...))
-  with(subset(res, abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="orange", ...))
-  with(subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="green", ...))
-  x <-subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh)
-  write.csv(x,file = paste(variable_condition_1,"vs",variable_condition_2,"_RESULTS_VOLCANO.csv"))
-  if (labelsig) {
-    require(calibrate)
-    with(subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh))#, textxy(log2FoldChange, -log10(pvalue), labs=Gene, cex=textcx, ...))
+  tryCatch({
+    with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main=main, ...))
+    with(subset(res, padj<sigthresh ), points(log2FoldChange, -log10(pvalue), pch=20, col="red", ...))
+    with(subset(res, abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="orange", ...))
+    with(subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="green", ...))
+    x <-subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh)
+    write.csv(x,file = paste(variable_condition_1,"vs",variable_condition_2,"_RESULTS_VOLCANO.csv"))
+    if (labelsig) {
+      require(calibrate)
+      with(subset(res, padj<sigthresh & abs(log2FoldChange)>lfcthresh))#, textxy(log2FoldChange, -log10(pvalue), labs=Gene, cex=textcx, ...))
   }
   legend(legendpos, xjust=1, yjust=1, legend=c(paste("FDR<",sigthresh,sep=""), paste("|LogFC|>",lfcthresh,sep=""), "both"), pch=20, col=c("red","orange","green"))
+ 
+  },error=function(error_message){
+  })
 }
+
 if (do_Volcano_Plot==TRUE){
-  png(paste("diffexpr_volcanoplot_",variable_condition_1,"vs",variable_condition_2,"_No_Text.png"), 1200, 1000, pointsize=20)
-  volcanoplot(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5))
-  dev.off()
+    png(paste("diffexpr_volcanoplot_",variable_condition_1,"vs",variable_condition_2,"_No_Text.png"), 1200, 1000, pointsize=20)
+    suppressWarnings(volcanoplot(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5)))
+    invisible(dev.off())
 }else{
-  volcanoplot(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5))
+    suppressWarnings(volcanoplot(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5)))
 }
 
 
