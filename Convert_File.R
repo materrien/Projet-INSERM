@@ -3,6 +3,8 @@ library(RCurl)
 options(RCurlOptions = list(cainfo = system.file("CurlSSL", "cacert.pem", package = "RCurl")))
 
 # Read in file with Gene Symbols
+directory <- tk_choose.dir()
+setwd(directory)
 infile <- file.choose()
 data <- read.csv(infile, header = TRUE, sep=",")
 
@@ -15,7 +17,7 @@ for (g in 1:length(newdata[[1]])) {
   query = paste("http://rest.kegg.jp/find/hsa/",newdata$Id[g],sep="")
   result = getURL(query)
   hsa = c(hsa, strsplit(result,"\t")[[1]][1])
-  }
+}
 
 # Squash them together
 newdata <- cbind(newdata, hsa)
@@ -26,8 +28,7 @@ newdata <- newdata[grep("hsa:", hsa), ]
 missing <- newdata[-grep("hsa:", hsa), ]
 
 # Write to file
-maindir <- getwd()
-dir.create(file.path(paste(maindir, "/Resultats", sep="")))
-setwd(file.path(paste(maindir, "/Resultats", sep="")))
-write.table(newdata, file = paste(infile,"_convert.txt", sep = ""), row.names=FALSE, col.names=TRUE,sep=",")
-write.table(missing, file = paste(infile,"_missing.txt", sep = ""), row.names=FALSE, col.names=TRUE,sep=",")
+dir.create(file.path(paste(directory, "/Resultats", sep="")))
+setwd(file.path(paste(directory, "/Resultats", sep="")))
+write.table(newdata, file = "convert.txt", row.names=FALSE, col.names=TRUE,sep=",")
+write.table(missing, file = "missing.txt", row.names=FALSE, col.names=TRUE,sep=",")
