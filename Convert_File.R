@@ -35,10 +35,13 @@ for (g in 1:length(newdata[[1]])) {
     check_semicolon_tab <- as.character(str_match (x,as.character(paste("\t",newdata$Id[g],";",sep=""))))
     check_semicolon_space <- as.character(str_match (x,as.character(paste(" ",newdata$Id[g],";",sep=""))))
     if (is.na(check_comma_tab)==FALSE | is.na(check_comma_space)==FALSE | is.na(check_semicolon_tab)==FALSE | is.na(check_semicolon_space)==FALSE){
-      hsa = c(hsa, strsplit(x," ")[[1]][1])
+      if (found_this_many == 0){
+        hsa = c(hsa, strsplit(x," ")[[1]][1]) 
+      }
       found_this_many = found_this_many + 1
-      if (found_this_many > 1){
+      if (found_this_many > 0){
         newdata<-rbind(newdata,newdata[g,])
+        hsa = c(hsa, strsplit(x," ")[[1]][1])
       }
     }
   }
