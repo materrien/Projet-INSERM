@@ -22,6 +22,15 @@ library(tidyverse)
 require(graph)
 require(ROntoTools)
 
+#This set of code downloads the pathways from keggs and updates them 
+#ON THE FINAL VERSION, VERBOSE SHOULD BE OFF
+kpg <- keggPathwayGraphs("hsa",verbose = TRUE)
+
+#Still the issue of a file delete, might have to look into the function itself
+#In the event that we need to do this, use trace("keggPathwayGraphs",edit=TRUE)
+#Copy the function and create your own version with a new name
+kpg <- keggPathwayGraphs("hsa", updateCache = TRUE, verbose = TRUE)
+
 ###################################################################################################################################
 
 #This segment will be the where the user inputs his data and preferences
@@ -313,16 +322,67 @@ DESeq2_file <- DESeq2_pre_processing(File_1, File_2, variable_condition_1, varia
 
 converted_file <- Gene_Symbol_Conversion(DESeq2_file)
 
+###################################################################################################################################
+
+#Creates the necessary rownames from the first column (gene IDs), it also makes them unique
+rownames(converted_file) = make.names(converted_file[,1],unique = TRUE) 
+
+#Remove the column that is now the dupliacte of rowname
+converted_file <- converted_file[,-1]
+
+#Sort by p-value and change name to 'top'
+top_temp <- converted_file[order(converted_file$P.Value),]
+#converted_file is now 'top'
+
+###################################################################################################################################
+
+#This is how we would select differentially expressed genes at 1% and save their fold change in a vector
+#fc and their p-values in a vector 'pv'
+#These two will be used to specific a p-value search
+fc_temp <- top_temp$logFC[top_temp$adj.P.Val <= .01]
+names(fc_temp) <- top_temp$entrez[top_temp$adj.P.Val <= .01]
+
+pv_temp <- top_temp$P.Value[top_temp$adj.P.Val <= .01]
+names(pv_temp) <- top_temp$entrez[top_temp$adj.P.Val <= .01]
 
 
+#Alternatively to the two functions above, we can do an analysis on all genes and store them in a variable
+#Here we store the log Fold change in fcALL
+#These two will be for all genese
+fcAll_temp <- top_temp$logFC
+#Declare the names of fcALL
+names(fcAll_temp) <- top_temp$entrez
+
+#Same as the two above, but with p-value
+pvAll_temp <- top_temp$P.Value
+names(pvAll_temp) <- top_temp$entrez
+
+#Stores the names of all the HSAs
+ref_temp <- as.character(top_temp$entrez)
+head(ref_temp)
+
+#About node weights
+#Node weights are used to encode for the significance of each gene, the term described as 'alpha' in (article: Proceedings of the International 
+#Conference on Machine Learning Applications (ICMLA),). There are two alternative formulas to incorporate gene significance.
+#these are alpha1MR and alphaMLG
+#To set the weight using these calculations, use the following function
+#Here we set the weights using the alphaMLG formula in accordance with the pv (selection of differentially expressed genes of significance 1% (via p-value))
+kpg <- setNodeWeights(kpg, weights = alphaMLG(pv), defaultWeight = 1)
+#NOTE: HERE IT USES pv, IT COULD ALSO USE fc or fcALL, OR EVEN pvALL
+#I need to check if weights can be set with fc.
 
 
+#The pe function is called to perform the analysis, the accuracy is determined by nboot (bigger=more accurate)
+#nboot significes number of bootstrap iterations
+#This is basically the number of times a statistical test is performed with random sampling replacement, the more it is performed, the more accurate it gets
+#Note: verbose should be set to false in final product
+peRes <- pe(x = fc, graphs = kpg, ref = ref, nboot = 200, verbose = TRUE)
+
+#NOTE: HERE IT USES fc, IT COULD ALSO USE pv or fcALL, OR EVEN pvALL
 
 
+getwd()
+#These will be the two formats in which these results will be printed
+write.table(Summary(peRes), file = "Summary_peRes.txt", row.names=TRUE, col.names=TRUE,sep=",")
 
-
-
-
-
-
-
+head(Summary(peRes, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc = FALSE, pORA = FALSE, comb.pv = NULL, order.by = "pPert"))

@@ -184,7 +184,7 @@ head(top)
 
 
 #This is how we would select differentially expressed genes at 1% and save their fold change in a vector
-#fc and theirp-values in a vector 'pv'
+#fc and their p-values in a vector 'pv'
 fc <- top$logFC[top$adj.P.Val <= .01]
 names(fc) <- top$entrez[top$adj.P.Val <= .01]
 head(fc)
@@ -216,6 +216,7 @@ names(pvAll) <- top$entrez
 
 #This contains all the genes measured in the analysis
 #I can't tell how it uses the above 2 functions
+#It doesn't, it just shows a list of the names
 ref <- top$entrez
 head(ref)
 #Results
