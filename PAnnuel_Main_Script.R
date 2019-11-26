@@ -376,13 +376,13 @@ kpg <- setNodeWeights(kpg, weights = alphaMLG(pv), defaultWeight = 1)
 #nboot significes number of bootstrap iterations
 #This is basically the number of times a statistical test is performed with random sampling replacement, the more it is performed, the more accurate it gets
 #Note: verbose should be set to false in final product
-peRes <- pe(x = fc, graphs = kpg, ref = ref, nboot = 200, verbose = TRUE)
+peRes <- pe(x = fc_temp, graphs = kpg, ref = ref_temp, nboot = 200, verbose = TRUE)
 
 #NOTE: HERE IT USES fc, IT COULD ALSO USE pv or fcALL, OR EVEN pvALL
 
-
+kpn <- keggPathwayNames("hsa")
 getwd()
 #These will be the two formats in which these results will be printed
 write.table(Summary(peRes), file = "Summary_peRes.txt", row.names=TRUE, col.names=TRUE,sep=",")
 
-head(Summary(peRes, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc = FALSE, pORA = FALSE, comb.pv = NULL, order.by = "pPert"))
+write.table(Summary(peRes, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc = FALSE, pORA = FALSE, comb.pv = NULL, order.by = "pPert"), file="better_summary_peRes.txt")
