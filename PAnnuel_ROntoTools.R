@@ -284,6 +284,7 @@ head(Summary(peRes, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc =
 #plot function de R pour tout les résultats, c'est très moche.
 plot(peRes)
 
+
 #This plot shows pathway level statistics
 plot(peRes, c("pAcc", "pORA"), comb.pv.func = compute.normalInv, threshold = .01)
 

@@ -6,6 +6,18 @@
 # BiocManager::install("ROntoTools")
 
 ###################################################################################################################################
+#This set of code downloads the pathways from keggs and updates them 
+#ON THE FINAL VERSION, VERBOSE SHOULD BE OFF
+
+#kpg <- keggPathwayGraphs("hsa",verbose = TRUE)
+
+#Still the issue of a file delete, might have to look into the function itself
+#In the event that we need to do this, use trace("keggPathwayGraphs",edit=TRUE)
+#Copy the function and create your own version with a new name
+
+#kpg <- keggPathwayGraphs("hsa", updateCache = TRUE, verbose = TRUE)
+
+###################################################################################################################################
 
 #Libraries for Deseq2 script
 library( "DESeq2" )
@@ -22,14 +34,6 @@ library(tidyverse)
 require(graph)
 require(ROntoTools)
 
-#This set of code downloads the pathways from keggs and updates them 
-#ON THE FINAL VERSION, VERBOSE SHOULD BE OFF
-kpg <- keggPathwayGraphs("hsa",verbose = TRUE)
-
-#Still the issue of a file delete, might have to look into the function itself
-#In the event that we need to do this, use trace("keggPathwayGraphs",edit=TRUE)
-#Copy the function and create your own version with a new name
-kpg <- keggPathwayGraphs("hsa", updateCache = TRUE, verbose = TRUE)
 
 ###################################################################################################################################
 
@@ -335,54 +339,107 @@ top_temp <- converted_file[order(converted_file$P.Value),]
 #converted_file is now 'top'
 
 ###################################################################################################################################
+#Start the function
+###################################################################################################################################
+ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
+{
+  ###################################################################################################################################
+  #Setting things up
+  ###################################################################################################################################
+  fc_temp <- top_temp$logFC[top_temp$adj.P.Val <= .01]
+  names(fc_temp) <- top_temp$entrez[top_temp$adj.P.Val <= .01]
+  
+  pv_temp <- top_temp$P.Value[top_temp$adj.P.Val <= .01]
+  names(pv_temp) <- top_temp$entrez[top_temp$adj.P.Val <= .01]
+  
+  pvAll_temp <- top_temp$P.Value
+  names(pvAll_temp) <- top_temp$entrez
+  
+  fcAll_temp <- top_temp$logFC
+  names(fcAll_temp) <- top_temp$entrez
+  
+  if (use_fc==TRUE){
+    results_variable <-fc_temp
+    print("fc TRUE")
+  }else if(use_fc==FALSE){
+    results_variable <-pv_temp
+    print("fc FALSE")
+  }else{
+    print("Something went wrong in the time space continum")
+  }
 
-#This is how we would select differentially expressed genes at 1% and save their fold change in a vector
-#fc and their p-values in a vector 'pv'
-#These two will be used to specific a p-value search
-fc_temp <- top_temp$logFC[top_temp$adj.P.Val <= .01]
-names(fc_temp) <- top_temp$entrez[top_temp$adj.P.Val <= .01]
+  #Stores the names of all the HSAs
+  ref_temp <- as.character(top_temp$entrez)
+  
+  #About node weights
+  #Node weights are used to encode for the significance of each gene, the term described as 'alpha' in (article: Proceedings of the International 
+  #Conference on Machine Learning Applications (ICMLA),). There are two alternative formulas to incorporate gene significance.
+  #these are alpha1MR and alphaMLG
+  #To set the weight using these calculations, use the following function
+  #Here we set the weights using the alphaMLG formula in accordance with the pv (selection of differentially expressed genes of significance 1% (via p-value))
+  
+  #This if will change the p values used depending on if the user wants to use a custom selection or not
+  if (use_custom==TRUE & weight_algo=="1MR"){
+    kpg <- setNodeWeights(kpg, weights = alpha1MR(pv_temp), defaultWeight = 1)
+    print("custom true weight 1MR")
+  }else if (use_custom==TRUE & weight_algo=="MLG"){
+    kpg <- setNodeWeights(kpg, weights = alphaMLG(pv_temp), defaultWeight = 1)
+    print("custom true weight MLG")
+  }else if (use_custom==FALSE & weight_algo=="1MR"){
+    kpg <- setNodeWeights(kpg, weights = alpha1MR(pvAll_temp), defaultWeight = 1)
+    print("custom false weight 1MR")
+  }else if (use_custom==FALSE & weight_algo=="MLG"){
+    kpg <- setNodeWeights(kpg, weights = alphaMLG(pvAll_temp), defaultWeight = 1)
+    print("custom false weight MLG")
+  }else{
+    print("Something went wrong in the time space continum")
+  }
+  
+  
+  #The pe function is called to perform the analysis, the accuracy is determined by nboot (bigger=more accurate)
+  #nboot significes number of bootstrap iterations
+  #This is basically the number of times a statistical test is performed with random sampling replacement, the more it is performed, the more accurate it gets
+  #Note: verbose should be set to false in final product
+  peRes <- pe(x = results_variable, graphs = kpg, ref = ref_temp, nboot = 200, verbose = TRUE)
+  #NOTE: HERE IT USES fc, IT COULD ALSO USE pv or fcALL, OR EVEN pvALL
+  
+  kpn <- keggPathwayNames("hsa")
+  
+  ###################################################################################################################################
+  #Writing the tables
+  ###################################################################################################################################
+  write.table(Summary(peRes), file = "Summary_peRes.txt", row.names=TRUE, col.names=TRUE,sep=",")
+  
+  write.table(Summary(peRes, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc = FALSE, pORA = FALSE, comb.pv = NULL, order.by = "pPert"), file="better_summary_peRes.txt")
+  
+  ###################################################################################################################################
+  #Creating the visual results
+  ###################################################################################################################################
+  
+  list_of_paths <- as.data.frame(kpn)
+  list_of_paths <- rownames(list_of_paths)
+  
+  dev.new()
+  pdf("Plot_All_Results.pdf")
+  #plot function de R pour tout les résultats, c'est très moche.
+  plot(peRes)
+  dev.off()
+  
+  dev.new()
+  pdf("Plot_pathway_level_statistics.pdf")
+  #This plot shows pathway level statistics
+  plot(peRes, c("pAcc", "pORA"), comb.pv.func = compute.normalInv, threshold = .01)
+  dev.off()
+  
+  
+  for (i in 1:length(list_of_paths)){
+    print(list_of_paths[i])
+  }
+  
+}
 
-pv_temp <- top_temp$P.Value[top_temp$adj.P.Val <= .01]
-names(pv_temp) <- top_temp$entrez[top_temp$adj.P.Val <= .01]
+
+#weight_algo must be 1MR or MLG
+ROntoTools_analysis(TRUE,TRUE,"MLG",top_temp)
 
 
-#Alternatively to the two functions above, we can do an analysis on all genes and store them in a variable
-#Here we store the log Fold change in fcALL
-#These two will be for all genese
-fcAll_temp <- top_temp$logFC
-#Declare the names of fcALL
-names(fcAll_temp) <- top_temp$entrez
-
-#Same as the two above, but with p-value
-pvAll_temp <- top_temp$P.Value
-names(pvAll_temp) <- top_temp$entrez
-
-#Stores the names of all the HSAs
-ref_temp <- as.character(top_temp$entrez)
-head(ref_temp)
-
-#About node weights
-#Node weights are used to encode for the significance of each gene, the term described as 'alpha' in (article: Proceedings of the International 
-#Conference on Machine Learning Applications (ICMLA),). There are two alternative formulas to incorporate gene significance.
-#these are alpha1MR and alphaMLG
-#To set the weight using these calculations, use the following function
-#Here we set the weights using the alphaMLG formula in accordance with the pv (selection of differentially expressed genes of significance 1% (via p-value))
-kpg <- setNodeWeights(kpg, weights = alphaMLG(pv), defaultWeight = 1)
-#NOTE: HERE IT USES pv, IT COULD ALSO USE fc or fcALL, OR EVEN pvALL
-#I need to check if weights can be set with fc.
-
-
-#The pe function is called to perform the analysis, the accuracy is determined by nboot (bigger=more accurate)
-#nboot significes number of bootstrap iterations
-#This is basically the number of times a statistical test is performed with random sampling replacement, the more it is performed, the more accurate it gets
-#Note: verbose should be set to false in final product
-peRes <- pe(x = fc_temp, graphs = kpg, ref = ref_temp, nboot = 200, verbose = TRUE)
-
-#NOTE: HERE IT USES fc, IT COULD ALSO USE pv or fcALL, OR EVEN pvALL
-
-kpn <- keggPathwayNames("hsa")
-getwd()
-#These will be the two formats in which these results will be printed
-write.table(Summary(peRes), file = "Summary_peRes.txt", row.names=TRUE, col.names=TRUE,sep=",")
-
-write.table(Summary(peRes, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc = FALSE, pORA = FALSE, comb.pv = NULL, order.by = "pPert"), file="better_summary_peRes.txt")
