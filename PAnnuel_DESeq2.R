@@ -94,14 +94,10 @@ dds = estimateSizeFactors(dds)
 dds <- DESeq(dds)
 
 ###################################################################################################################################
-
-
 res <- results(dds)
 
 #Could be used if they want to reduce?
 #res <- lfcShrink(dds, coef=2, type="apeglm")
-
-
 
 #Orders the results via adjusted p-value
 res <- res[order(res$padj), ]
