@@ -343,6 +343,12 @@ top_temp <- converted_file[order(converted_file$P.Value),]
 ###################################################################################################################################
 ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
 {
+  
+  kpg <- keggPathwayGraphs("hsa",verbose = TRUE)
+  #kpg <- keggPathwayGraphs("hsa", updateCache = TRUE, verbose = TRUE)
+  
+  #These weights may need to be modified
+  kpg <- setEdgeWeights(kpg, edgeTypeAttr = "subtype",edgeWeightByType = list(activation = 1, inhibition = -1,expression = 1, repression = -1),defaultWeight = 0)
   ###################################################################################################################################
   #Setting things up
   ###################################################################################################################################
@@ -400,7 +406,7 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   #nboot significes number of bootstrap iterations
   #This is basically the number of times a statistical test is performed with random sampling replacement, the more it is performed, the more accurate it gets
   #Note: verbose should be set to false in final product
-  peRes <- pe(x = results_variable, graphs = kpg, ref = ref_temp, nboot = 200, verbose = TRUE)
+  peRes_Temp <- pe(x = results_variable, graphs = kpg, ref = ref_temp, nboot = 200, verbose = TRUE)
   #NOTE: HERE IT USES fc, IT COULD ALSO USE pv or fcALL, OR EVEN pvALL
   
   kpn <- keggPathwayNames("hsa")
@@ -408,9 +414,9 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   ###################################################################################################################################
   #Writing the tables
   ###################################################################################################################################
-  write.table(Summary(peRes), file = "Summary_peRes.txt", row.names=TRUE, col.names=TRUE,sep=",")
+  write.table(Summary(peRes_Temp), file = "Summary_peRes_Temp.txt", row.names=TRUE, col.names=TRUE,sep=",")
   
-  write.table(Summary(peRes, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc = FALSE, pORA = FALSE, comb.pv = NULL, order.by = "pPert"), file="better_summary_peRes.txt")
+  write.table(Summary(peRes_Temp, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc = FALSE, pORA = FALSE, comb.pv = NULL, order.by = "pPert"), file="better_summary_peRes_Temp.txt")
   
   ###################################################################################################################################
   #Creating the visual results
@@ -422,19 +428,31 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   dev.new()
   pdf("Plot_All_Results.pdf")
   #plot function de R pour tout les résultats, c'est très moche.
-  plot(peRes)
+  plot(peRes_Temp)
   dev.off()
   
   dev.new()
   pdf("Plot_pathway_level_statistics.pdf")
   #This plot shows pathway level statistics
-  plot(peRes, c("pAcc", "pORA"), comb.pv.func = compute.normalInv, threshold = .01)
+  plot(peRes_Temp, c("pAcc", "pORA"), comb.pv.func = compute.normalInv, threshold = .01)
   dev.off()
   
+  maindir <- getwd()
   
-  for (i in 1:length(list_of_paths)){
-    print(list_of_paths[i])
-  }
+  dir.create(file.path(maindir, "Two_Way_Plots"))
+  setwd(file.path(maindir, "Two_Way_Plots"))
+  print(list_of_paths[1])
+  View(peRes_Temp)
+  print(peRes_Temp@pathways[["path:hsa04062"]])
+  plot(peRes_Temp@pathways[["path:hsa04062"]], type = "two.way")
+  # for (i in 1:length(list_of_paths)){
+  #   print("in for")
+  #   #dev.new()
+  #   #pdf(paste("two_way_plot_",list_of_paths[i]))
+  #   #print(peRes_Temp@pathways[[list_of_paths[i]]])
+  #   plot(peRes_Temp@pathways[[list_of_paths[i]]], type = "two.way")
+  #   #dev.off()
+  # }
   
 }
 
