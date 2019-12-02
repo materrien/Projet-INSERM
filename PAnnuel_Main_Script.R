@@ -450,33 +450,34 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   #plot function de R pour tout les résultats, c'est très moche.
   plot(peRes_Temp)
   dev.off()
-  
+
   print("after first plot")
-  
+
   dev.new()
   pdf("Plot_pathway_level_statistics.pdf")
   #This plot shows pathway level statistics
   plot(peRes_Temp, c("pAcc", "pORA"), comb.pv.func = compute.normalInv, threshold = .01)
   dev.off()
-  
+
   maindir <- getwd()
-  
+
   dir.create(file.path(maindir, "Two_Way_Plots"))
   setwd(file.path(maindir, "Two_Way_Plots"))
   #print(list_of_paths[1])
   #View(peRes_Temp)
 
-  print(peRes_Temp@pathways["path:hsa04728"])
+  # print(typeof(peRes_Temp@pathways))
+  print(names(peRes_Temp@pathways))
   #plot(peRes_Temp@pathways[["path:hsa05168"]], type = "two.way")
-  for (i in 1:length(list_of_paths)){
+  for (i in 1:length(names(peRes_Temp@pathways))){
     #print("in for")
     #dev.new()
     #pdf(paste("two_way_plot_",list_of_paths[i]))
     #print(peRes_Temp@pathways[[list_of_paths[i]]])
-    print(list_of_paths[i])
-    if (is.null(peRes_Temp@pathways[[list_of_paths[i]]])==FALSE){
-      print(paste("This one works",list_of_paths[i]))
-      plot(peRes_Temp@pathways[[list_of_paths[i]]], type = "two.way")
+    print(names(peRes_Temp@pathways[i]))
+    if (is.null(peRes_Temp@pathways[[names(peRes_Temp@pathways[i])]])==FALSE){
+      print(paste("This one works",names(peRes_Temp@pathways[i])))
+      plot(peRes_Temp@pathways[[names(peRes_Temp@pathways[i])]], type = "two.way")
     }
     #dev.off()
   }
