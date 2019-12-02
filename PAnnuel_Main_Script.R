@@ -465,16 +465,21 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   setwd(file.path(maindir, "Two_Way_Plots"))
   #print(list_of_paths[1])
   #View(peRes_Temp)
-  #print(peRes_Temp@pathways[["path:hsa05168"]])
-  plot(peRes_Temp@pathways[["path:hsa05168"]], type = "two.way")
-  # for (i in 1:length(list_of_paths)){
-  #   print("in for")
-  #   #dev.new()
-  #   #pdf(paste("two_way_plot_",list_of_paths[i]))
-  #   #print(peRes_Temp@pathways[[list_of_paths[i]]])
-  #   plot(peRes_Temp@pathways[[list_of_paths[i]]], type = "two.way")
-  #   #dev.off()
-  # }
+
+  print(peRes_Temp@pathways["path:hsa04728"])
+  #plot(peRes_Temp@pathways[["path:hsa05168"]], type = "two.way")
+  for (i in 1:length(list_of_paths)){
+    #print("in for")
+    #dev.new()
+    #pdf(paste("two_way_plot_",list_of_paths[i]))
+    #print(peRes_Temp@pathways[[list_of_paths[i]]])
+    print(list_of_paths[i])
+    if (is.null(peRes_Temp@pathways[[list_of_paths[i]]])==FALSE){
+      print(paste("This one works",list_of_paths[i]))
+      plot(peRes_Temp@pathways[[list_of_paths[i]]], type = "two.way")
+    }
+    #dev.off()
+  }
   
 }
 
