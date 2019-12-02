@@ -254,8 +254,10 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
   ###################################################################################################################################
   
   
-  return (pre_processed_file_short)
+  return (pre_processed_file_full)
 }
+
+
 
 #Create the function for gene symbol conversion to HSA
 Gene_Symbol_Conversion <- function(DESeq2_file)
@@ -324,11 +326,24 @@ Gene_Symbol_Conversion <- function(DESeq2_file)
 
 
 #Call the functions
-DESeq2_file_short <- DESeq2_pre_processing(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot)
+DESeq2_file_full <- DESeq2_pre_processing(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot)
+
+
+###################################################################################################################################
+test_500 <- DESeq2_file_full
+#Order by padj
+test_500 <- test_500[order(test_500$padj),]
+#Take top 500 rows (smallest padj)
+test_500 <- test_500[1:500,]
+#Remove unecessary columns
+test_500<-test_500[,1:7]
+
+###################################################################################################################################
+
 
 
 #Testing with full
-converted_file <- Gene_Symbol_Conversion(DESeq2_file_short)
+converted_file <- Gene_Symbol_Conversion(test_500)
 
 ###################################################################################################################################
 
@@ -388,23 +403,23 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   #To set the weight using these calculations, use the following function
   #Here we set the weights using the alphaMLG formula in accordance with the pv (selection of differentially expressed genes of significance 1% (via p-value))
   
-  # #This if will change the p values used depending on if the user wants to use a custom selection or not
-  # if (use_custom==TRUE & weight_algo=="1MR"){
-  #   kpg <- setNodeWeights(kpg, weights = alpha1MR(pv_temp), defaultWeight = 1)
-  #   print("custom true weight 1MR")
-  # }else if (use_custom==TRUE & weight_algo=="MLG"){
-  #   kpg <- setNodeWeights(kpg, weights = alphaMLG(pv_temp), defaultWeight = 1)
-  #   print("custom true weight MLG")
-  # }else if (use_custom==FALSE & weight_algo=="1MR"){
-  #   kpg <- setNodeWeights(kpg, weights = alpha1MR(pvAll_temp), defaultWeight = 1)
-  #   print("custom false weight 1MR")
-  # }else if (use_custom==FALSE & weight_algo=="MLG"){
-  #   kpg <- setNodeWeights(kpg, weights = alphaMLG(pvAll_temp), defaultWeight = 1)
-  #   print("custom false weight MLG")
-  # }else{
-  #   print("Something went wrong in the time space continum")
-  # }
-  
+  #This if will change the p values used depending on if the user wants to use a custom selection or not
+  if (use_custom==TRUE & weight_algo=="1MR"){
+    kpg <- setNodeWeights(kpg, weights = alpha1MR(pv_temp), defaultWeight = 1)
+    print("custom true weight 1MR")
+  }else if (use_custom==TRUE & weight_algo=="MLG"){
+    kpg <- setNodeWeights(kpg, weights = alphaMLG(pv_temp), defaultWeight = 1)
+    print("custom true weight MLG")
+  }else if (use_custom==FALSE & weight_algo=="1MR"){
+    kpg <- setNodeWeights(kpg, weights = alpha1MR(pvAll_temp), defaultWeight = 1)
+    print("custom false weight 1MR")
+  }else if (use_custom==FALSE & weight_algo=="MLG"){
+    kpg <- setNodeWeights(kpg, weights = alphaMLG(pvAll_temp), defaultWeight = 1)
+    print("custom false weight MLG")
+  }else{
+    print("Something went wrong in the time space continum")
+  }
+
   
   #The pe function is called to perform the analysis, the accuracy is determined by nboot (bigger=more accurate)
   #nboot significes number of bootstrap iterations
@@ -422,7 +437,7 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   
   write.table(Summary(peRes_Temp, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc = FALSE, pORA = FALSE, comb.pv = NULL, order.by = "pPert"), file="better_summary_peRes_Temp.txt")
   
-  
+  print("after writes")
   ###################################################################################################################################
   #Creating the visual results
   ###################################################################################################################################
@@ -436,6 +451,8 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   plot(peRes_Temp)
   dev.off()
   
+  print("after first plot")
+  
   dev.new()
   pdf("Plot_pathway_level_statistics.pdf")
   #This plot shows pathway level statistics
@@ -448,8 +465,8 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   setwd(file.path(maindir, "Two_Way_Plots"))
   #print(list_of_paths[1])
   #View(peRes_Temp)
-  print(peRes_Temp@pathways[["path:hsa04062"]])
-  plot(peRes_Temp@pathways[["path:hsa04062"]], type = "two.way")
+  #print(peRes_Temp@pathways[["path:hsa05168"]])
+  plot(peRes_Temp@pathways[["path:hsa05168"]], type = "two.way")
   # for (i in 1:length(list_of_paths)){
   #   print("in for")
   #   #dev.new()

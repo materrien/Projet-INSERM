@@ -274,6 +274,11 @@ head(Summary(peRes, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc =
 #path:hsa04060 Cytokine-cytokine receptor interaction 0.004975124 0.01419569
 #path:hsa04062            Chemokine signaling pathway 0.004975124 0.01419569
 
+getwd()
+setwd("C:/Users/yohan/Desktop")
+write.table(Summary(peRes), file = "Summary_peRes_Temp.txt", row.names=TRUE, col.names=TRUE,sep=",")
+
+write.table(Summary(peRes, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc = FALSE, pORA = FALSE, comb.pv = NULL, order.by = "pPert"), file="better_summary_peRes_Temp.txt")
 
 
 ###########################################################################################################################################################
