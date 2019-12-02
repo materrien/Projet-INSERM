@@ -131,6 +131,7 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
   resdata <- merge(as.data.frame(res), as.data.frame(counts(dds, normalized=TRUE)), by="row.names", sort=FALSE)
   names(resdata)[1] <- "Gene"
   head(resdata)
+  pre_processed_file_full<-resdata
   ## Write results
   write.csv(resdata, file=paste("diffexpr_results",variable_condition_1,"vs",variable_condition_2,".csv"))
   
@@ -185,7 +186,7 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
   ## Volcano plot with "significant" genes in green with text
   ###################################################################################################################################
   #Sets up the function
-  volcanoplot_text <- function (res, lfcthresh=2, sigthresh=0.05, main="Volcano Plot", legendpos="bottomright", labelsig=TRUE, textcx=1, ...) {
+  volcanoplot_text <- function (res, lfcthresh=1, sigthresh=0.05, main="Volcano Plot", legendpos="bottomright", labelsig=TRUE, textcx=1, ...) {
     tryCatch({
       with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main=main, ...))
       with(subset(res, padj<sigthresh ), points(log2FoldChange, -log10(pvalue), pch=20, col="red", ...))
@@ -229,10 +230,10 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
   #However, depending on what the user wants, the function will only produce a list, or it will produce a list and create the corresponding volcano plot
   if (do_Volcano_Plot==TRUE){
     png(paste("diffexpr_volcanoplot_",variable_condition_1,"vs",variable_condition_2,"_No_Text.png"), 1200, 1000, pointsize=20)
-    pre_processed_file<-suppressWarnings(volcanoplot_no_text(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5)))
+    pre_processed_file_short<-suppressWarnings(volcanoplot_no_text(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5)))
     invisible(dev.off())
   }else{
-    pre_processed_file<-suppressWarnings(volcanoplot_no_text(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5)))
+    pre_processed_file_short<-suppressWarnings(volcanoplot_no_text(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5)))
   }
   
   
@@ -253,7 +254,7 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
   ###################################################################################################################################
   
   
-  return (pre_processed_file)
+  return (pre_processed_file_short)
 }
 
 #Create the function for gene symbol conversion to HSA
@@ -317,14 +318,17 @@ Gene_Symbol_Conversion <- function(DESeq2_file)
   write.table(newdata, file = "convert.txt", row.names=FALSE, col.names=TRUE,sep=",")
   write.table(missing, file = "missing.txt", row.names=FALSE, col.names=TRUE,sep=",")
   
+  
   return(newdata)
 }
 
 
 #Call the functions
-DESeq2_file <- DESeq2_pre_processing(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot)
+DESeq2_file_short <- DESeq2_pre_processing(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot)
 
-converted_file <- Gene_Symbol_Conversion(DESeq2_file)
+
+#Testing with full
+converted_file <- Gene_Symbol_Conversion(DESeq2_file_short)
 
 ###################################################################################################################################
 
@@ -384,31 +388,31 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   #To set the weight using these calculations, use the following function
   #Here we set the weights using the alphaMLG formula in accordance with the pv (selection of differentially expressed genes of significance 1% (via p-value))
   
-  #This if will change the p values used depending on if the user wants to use a custom selection or not
-  if (use_custom==TRUE & weight_algo=="1MR"){
-    kpg <- setNodeWeights(kpg, weights = alpha1MR(pv_temp), defaultWeight = 1)
-    print("custom true weight 1MR")
-  }else if (use_custom==TRUE & weight_algo=="MLG"){
-    kpg <- setNodeWeights(kpg, weights = alphaMLG(pv_temp), defaultWeight = 1)
-    print("custom true weight MLG")
-  }else if (use_custom==FALSE & weight_algo=="1MR"){
-    kpg <- setNodeWeights(kpg, weights = alpha1MR(pvAll_temp), defaultWeight = 1)
-    print("custom false weight 1MR")
-  }else if (use_custom==FALSE & weight_algo=="MLG"){
-    kpg <- setNodeWeights(kpg, weights = alphaMLG(pvAll_temp), defaultWeight = 1)
-    print("custom false weight MLG")
-  }else{
-    print("Something went wrong in the time space continum")
-  }
+  # #This if will change the p values used depending on if the user wants to use a custom selection or not
+  # if (use_custom==TRUE & weight_algo=="1MR"){
+  #   kpg <- setNodeWeights(kpg, weights = alpha1MR(pv_temp), defaultWeight = 1)
+  #   print("custom true weight 1MR")
+  # }else if (use_custom==TRUE & weight_algo=="MLG"){
+  #   kpg <- setNodeWeights(kpg, weights = alphaMLG(pv_temp), defaultWeight = 1)
+  #   print("custom true weight MLG")
+  # }else if (use_custom==FALSE & weight_algo=="1MR"){
+  #   kpg <- setNodeWeights(kpg, weights = alpha1MR(pvAll_temp), defaultWeight = 1)
+  #   print("custom false weight 1MR")
+  # }else if (use_custom==FALSE & weight_algo=="MLG"){
+  #   kpg <- setNodeWeights(kpg, weights = alphaMLG(pvAll_temp), defaultWeight = 1)
+  #   print("custom false weight MLG")
+  # }else{
+  #   print("Something went wrong in the time space continum")
+  # }
   
   
   #The pe function is called to perform the analysis, the accuracy is determined by nboot (bigger=more accurate)
   #nboot significes number of bootstrap iterations
   #This is basically the number of times a statistical test is performed with random sampling replacement, the more it is performed, the more accurate it gets
   #Note: verbose should be set to false in final product
-  peRes_Temp <- pe(x = results_variable, graphs = kpg, ref = ref_temp, nboot = 200, verbose = TRUE)
-  #NOTE: HERE IT USES fc, IT COULD ALSO USE pv or fcALL, OR EVEN pvALL
   
+  peRes_Temp <- pe(x = results_variable, graphs = kpg, ref = ref_temp, nboot = 200, verbose = TRUE)
+
   kpn <- keggPathwayNames("hsa")
   
   ###################################################################################################################################
@@ -417,6 +421,7 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   write.table(Summary(peRes_Temp), file = "Summary_peRes_Temp.txt", row.names=TRUE, col.names=TRUE,sep=",")
   
   write.table(Summary(peRes_Temp, pathNames = kpn, totalAcc = FALSE, totalPert = FALSE, pAcc = FALSE, pORA = FALSE, comb.pv = NULL, order.by = "pPert"), file="better_summary_peRes_Temp.txt")
+  
   
   ###################################################################################################################################
   #Creating the visual results
@@ -441,8 +446,8 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   
   dir.create(file.path(maindir, "Two_Way_Plots"))
   setwd(file.path(maindir, "Two_Way_Plots"))
-  print(list_of_paths[1])
-  View(peRes_Temp)
+  #print(list_of_paths[1])
+  #View(peRes_Temp)
   print(peRes_Temp@pathways[["path:hsa04062"]])
   plot(peRes_Temp@pathways[["path:hsa04062"]], type = "two.way")
   # for (i in 1:length(list_of_paths)){
