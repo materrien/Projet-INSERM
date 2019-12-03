@@ -6,6 +6,7 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 
 BiocManager::install("ROntoTools")
 
+
 ###########################################################################################################################################################
 #Basically a library call
 require(graph)
@@ -295,7 +296,7 @@ plot(peRes, c("pAcc", "pORA"), comb.pv.func = compute.normalInv, threshold = .01
 
 
 #These plots can either be two way or boot type, no other type exists in this package
-plot(peRes@pathways[["path:hsa05216"]], type = "two.way")
+plot(peRes@pathways[["path:hsa04728"]], type = "two.way")
 #Result
 #This plot has two variables, log2FC as Y and Acc (accuracy) as x, it also has colored dots, doesn't seem to mean much
 

@@ -461,29 +461,38 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
 
   maindir <- getwd()
 
-  dir.create(file.path(maindir, "Two_Way_Plots"))
-  setwd(file.path(maindir, "Two_Way_Plots"))
+  # dir.create(file.path(maindir, "Two_Way_Plots"))
+  # setwd(file.path(maindir, "Two_Way_Plots"))
+  
+  
   #print(list_of_paths[1])
   #View(peRes_Temp)
 
   # print(typeof(peRes_Temp@pathways))
-  print(names(peRes_Temp@pathways))
   #plot(peRes_Temp@pathways[["path:hsa05168"]], type = "two.way")
   for (i in 1:length(names(peRes_Temp@pathways))){
-    #print("in for")
-    #dev.new()
-    #pdf(paste("two_way_plot_",list_of_paths[i]))
-    #print(peRes_Temp@pathways[[list_of_paths[i]]])
-    print(names(peRes_Temp@pathways[i]))
     if (is.null(peRes_Temp@pathways[[names(peRes_Temp@pathways[i])]])==FALSE){
-      print(paste("This one works",names(peRes_Temp@pathways[i])))
-      plot(peRes_Temp@pathways[[names(peRes_Temp@pathways[i])]], type = "two.way")
+      tryCatch({
+        #print(paste("This one works",names(peRes_Temp@pathways[i])))
+        dev.new()
+        print(names(peRes_Temp@pathways[i]))
+        x <- names(peRes_Temp@pathways[i])
+        hsa_temp <- strsplit(x,':')
+        pdf(paste("two_way_plot_",hsa_temp[[1]][2],".pdf"))
+        plot(peRes_Temp@pathways[[names(peRes_Temp@pathways[i])]], type = "two.way")
+        dev.off()
+        #This for loop ensures that all active devices are closed by the end of the initial loop, otherwise errors occur
+        for (i in dev.list()[1]:dev.list()[length(dev.list())]) {
+          dev.off()
+        }
+      },error=function(error){
+        #Skip it
+      })
+    #break
     }
-    #dev.off()
   }
   
 }
-
 
 #weight_algo must be 1MR or MLG
 ROntoTools_analysis(TRUE,TRUE,"MLG",top_temp)
