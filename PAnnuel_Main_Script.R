@@ -453,11 +453,11 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
 
   print("after first plot")
 
-  dev.new()
-  pdf("Plot_pathway_level_statistics.pdf")
-  #This plot shows pathway level statistics
-  plot(peRes_Temp, c("pAcc", "pORA"), comb.pv.func = compute.normalInv, threshold = .01)
-  dev.off()
+  # dev.new()
+  # pdf("Plot_pathway_level_statistics.pdf")
+  # #This plot shows pathway level statistics
+  # plot(peRes_Temp, c("pAcc", "pORA"), comb.pv.func = compute.normalInv, threshold = .01)
+  # dev.off()
 
   maindir <- getwd()
 
@@ -467,34 +467,49 @@ ROntoTools_analysis <- function (use_fc,use_custom,weight_algo,file)
   
   #print(list_of_paths[1])
   #View(peRes_Temp)
-
   # print(typeof(peRes_Temp@pathways))
   #plot(peRes_Temp@pathways[["path:hsa05168"]], type = "two.way")
   for (i in 1:length(names(peRes_Temp@pathways))){
     if (is.null(peRes_Temp@pathways[[names(peRes_Temp@pathways[i])]])==FALSE){
       tryCatch({
         #print(paste("This one works",names(peRes_Temp@pathways[i])))
-        dev.new()
         print(names(peRes_Temp@pathways[i]))
-        x <- names(peRes_Temp@pathways[i])
-        hsa_temp <- strsplit(x,':')
-        pdf(paste("two_way_plot_",hsa_temp[[1]][2],".pdf"))
-        plot(peRes_Temp@pathways[[names(peRes_Temp@pathways[i])]], type = "two.way")
-        dev.off()
-        #This for loop ensures that all active devices are closed by the end of the initial loop, otherwise errors occur
-        for (i in dev.list()[1]:dev.list()[length(dev.list())]) {
-          dev.off()
+        current_hsa <- names(peRes_Temp@pathways[i])
+        hsa_temp <- strsplit(current_hsa,':')
+        
+        
+        print(peRes_Temp@pathways[[current_hsa]]@Acc)
+        
+        check_for_hsa_zero=FALSE
+        
+        for (y in 1:length(peRes_Temp@pathways[[current_hsa]]@Acc)){
+          if ((peRes_Temp@pathways[[current_hsa]]@Acc[[y]])!=0){
+            check_for_hsa_zero=TRUE
+          }
         }
+        
+        print(paste("over here",check_for_hsa_zero))
+        #View(peRes_Temp)
+        # dev.new()
+        # pdf(paste("two_way_plot_",hsa_temp[[1]][2],".pdf"))
+        # plot(peRes_Temp@pathways[[current_hsa]], type = "boot")
+        # dev.off()
+        print("should be after warnings")
+        #This for loop ensures that all active devices are closed by the end of the initial loop, otherwise errors occur
+        # for (z in dev.list()[1]:dev.list()[length(dev.list())]) {
+        #   #dev.off()
+        #   print("hi")
+        # }
       },error=function(error){
         #Skip it
       })
-    #break
+    break
     }
   }
-  
+  print("at the very end")
 }
 
 #weight_algo must be 1MR or MLG
-ROntoTools_analysis(TRUE,TRUE,"MLG",top_temp)
+ROntoTools_analysis(FALSE,TRUE,"MLG",top_temp)
 
 
