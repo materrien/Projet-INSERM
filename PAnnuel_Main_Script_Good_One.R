@@ -49,13 +49,12 @@ do_Volcano_Plot <- TRUE
 setwd("C:\\Users\\yohan\\Desktop")
 
 
-#Create a new file in the selected directory, might not be usefull
-maindir <- getwd()
-dir.create(file.path(maindir, "Normal_Results"))
-setwd(file.path(maindir, "Normal_Results"))
+
+
+dir_name="Blarg Results"
 
 #Create the function for Deseq2
-DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot)
+DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot,dir_name)
 {
   ###################################################################################################################################
   #File preperations for a file merge, i.e obtaining the necessary format for DESeq2 preprocessing
@@ -250,7 +249,7 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
 
 
 #Call the functions
-DESeq2_file_short <- DESeq2_pre_processing(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot)
+DESeq2_file_short <- DESeq2_pre_processing(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot,dir_name)
 
 DESeq2_file_short <- DESeq2_file_short[,1:7]
 rownames(DESeq2_file_short) <- DESeq2_file_short[,1]
