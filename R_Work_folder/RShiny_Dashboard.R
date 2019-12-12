@@ -57,6 +57,12 @@ remove_Rplots <- function (Directory)
   }
 }
 
+#Checks the validity of an entered e-mail
+isValidEmail <- function(x) 
+{
+  grepl("\\<[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\>", as.character(x), 
+        ignore.case=TRUE)
+}
 
 #Create the function for Deseq2
 DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot)
@@ -305,54 +311,102 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
 
 
 #The ui for the application
-ui <- dashboardPage(
+ui <- dashboardPage(skin="blue",
   dashboardHeader(title="INSERM 33"),
   dashboardSidebar(
-    
-    #Calls the use of shinyJS which will be used to enable, disable, show, and hide various elements of the application
-    useShinyjs(),
-
-    #Setting up the file input system of the application
-    fileInput("file1", "Choose CSV File 1",
-              accept = c(
-                "text/csv",
-                "text/comma-separated-values,text/plain",
-                ".csv")
-    ),
-    #tags$hr1(),
-
-    fileInput("file2", "Choose CSV File 2",
-              accept = c(
-                "text/csv",
-                "text/comma-separated-values,text/plain",
-                ".csv")
-    ),
-    #tags$hr2(),
-    directoryInput('directory', label = 'select a directory', value = '~'),
-    #Adds the text_input which will take in the first condition
-    textInput("condition1", "Name of the first condition", "Condition_1"),
-
-    #Adds the text_input which will take in the first condition
-    textInput("condition2", "Name of the second condition", "Condition_2"),
-
-    #A simple checkbox which will allow users to choose if they want to do MA plots
-    checkboxInput("Make_MA", "Create MA Plots", value = TRUE, width = NULL),
-
-    #A check box which will allow users to choose if they want to do Volcano plots
-    checkboxInput("Make_Volcano", "Create Volcano Plots", value = TRUE, width = NULL),
-
-    #The action button which will set the analysis in motion, it is initially disabled to prevent users form clicking the button while the requirements are not fufilled
-    disabled(actionButton("launch", "Launch Analysis"))
-    #actionButton("launch", "Launch Analysis"),
-    #A text ouput used for debugging
-    #textOutput("status"),
-    
+    sidebarMenu(
+      # Web site for the icons: https://fontawesome.com/icons?d=gallery&m=free
+      menuItem("Information", tabName = "info", icon = icon("book-open")),
+      menuItem("Connect to database", tabName = "connect_DB",icon= icon("database")),
+      menuItem("Run analysis with DESeq2", tabName = "DESeq2_analysis", icon= icon("chart-bar")),
+      menuItem("Results",tabName = "res", icon=icon("dna")),
+      menuItem("Add gene to database", tabName = "add_DB", icon= icon("plus")),
+      menuItem("Citation", tabName = "citation", icon= icon("book"))
+    )
     
   ),
-    #The main panel is set up to only contain a datatable of the dataset the user will enter, the height is limited as to ensure the table is adapted to low resolution screens
-    
+  #The main panel is set up to only contain a datatable of the dataset the user will enter, the height is limited as to ensure the table is adapted to low resolution screens
+  
   dashboardBody(
     useShinyjs(),
+    tabItems(
+      tabItem(tabName = "info",
+              h2("Information tab content")
+      ),
+      
+      tabItem(tabName = "connect_DB",
+              h2("Establish connection to the database"),
+              textInput("email","Email Address:"),
+              
+              selectInput("study_type", "Type of Study",
+                          choices = list("Metabolic" = "Metabolic",
+                                         "Epigenetic" = "Epigenetic",
+                                         "Metabolomic" = "Metabolomic",
+                                         "Others" = "Others"),
+                          selected = 1),
+              
+              selectInput("user_position", "Position held",
+                          choices = list("Researcher" = "Researcher",
+                                         "PhD" = "PhD",
+                                         "Student" = "Student",
+                                         "Intern" = "Intern",
+                                         "Other" = "Other"),
+                          selected = 1),
+              
+              textAreaInput("comments", "Comments", placeholder = "Feel free to add a comment",width="500px"),
+              actionButton("connect_DB", "Connect to database"),
+              textOutput("connect_db_status")
+      ),
+      
+      tabItem(tabName = "DESeq2_analysis",
+              h2("Run an analysis using DESeq2"),
+              
+              
+              useShinyjs(),
+              #Setting up the file input system of the application
+              fileInput("file1", "Choose CSV File 1",
+                        accept = c(
+                          "text/csv",
+                          "text/comma-separated-values,text/plain",
+                          ".csv")
+              ),
+              fileInput("file2", "Choose CSV File 2",
+                        accept = c(
+                          "text/csv",
+                          "text/comma-separated-values,text/plain",
+                          ".csv")
+              ),
+              
+              directoryInput('directory', label = 'select a directory', value = '~'),
+              #Adds the text_input which will take in the first condition
+              textInput("condition1", "Name of the condition for file 1", "Condition_1"),
+              
+              #Adds the text_input which will take in the first condition
+              textInput("condition2", "Name of the condition for file 2", "Condition_2"),
+              
+              #A simple checkbox which will allow users to choose if they want to do MA plots
+              checkboxInput("Make_MA", "Create MA Plots", value = TRUE, width = NULL),
+              
+              #A check box which will allow users to choose if they want to do Volcano plots
+              checkboxInput("Make_Volcano", "Create Volcano Plots", value = TRUE, width = NULL),
+              
+              #The action button which will set the analysis in motion, it is initially disabled to prevent users form clicking the button while the requirements are not fufilled
+              disabled(actionButton("launch", "Launch Analysis"))
+      ),
+      
+      tabItem(tabName = "res",
+              h2("Results tab")
+      ),
+      
+      tabItem(tabName = "add_DB",
+              h2("Add a gene to the non-canonical database")
+      ),
+      
+      tabItem(tabName = "citation",
+              h2("Information about citing the use of this tool")
+      )
+              
+    ),
     DT::dataTableOutput("contents",width = 'auto',height = 500)
   )
 )
@@ -375,7 +429,18 @@ server <- function(input, output, session) {
   ############################################################################################################################################
   
   shinyjs::hide("contents")
-
+  
+  #Used to check if the email is valid when clicking the 'connect' button
+  observeEvent(input$connect_DB, {(
+    if (isValidEmail(input$email)==FALSE){
+      output$connect_db_status <- renderText("Please enter a valid email address")
+    }else if (nchar(input$comments)>300){
+      output$connect_db_status <- renderText(paste("Too many characters in comment box. Characters used:",nchar(input$comments)))
+      #Would add the action of the button here!
+    }else{
+      output$connect_db_status <- renderText(paste("Email address is valid. Characters in comment box:",nchar(input$comments)))
+    }
+  )})
 
   
   #This observe event handles the setting of the directory
@@ -387,7 +452,7 @@ server <- function(input, output, session) {
     handlerExpr = {
       if (input$directory > 0) {
         # condition prevents handler execution on initial app launch
-        
+
         # launch the directory selection dialog with initial path read from the widget
         path = choose.dir(default = readDirectoryInput(session, 'directory'))
         # update the widget value
@@ -422,7 +487,7 @@ server <- function(input, output, session) {
   }else{
     disable("launch")
   })
-
+  
   #The first action done when a user launches an analysis
   observeEvent(input$launch,{showModal(modalDialog("Working... you will be notified when the analysis is done"))})
   
@@ -435,21 +500,21 @@ server <- function(input, output, session) {
   #If it is not of character type, it means there was an error, thus I manually add in the error message that should have been sent by the 'launchMuma' function.
   #This line of code could not be split as the stored 'message' is only present for the duration of this line of code.
   observeEvent(input$launch,{(message_from_function <-suppressWarnings(DESeq2_pre_processing(input$file1$datapath,input$file2$datapath, 
-                                                        input$condition1,input$condition2,input$Make_MA,input$Make_Volcano)))
-  (showModal(modalDialog(
-    if (typeof(message_from_function)!="character"){
-      paste("Error, please check the 'Error_and_Warning_Log.txt' located here:",getwd())
-    }else{
-      message_from_function
-    })))
-  
+                                                                                             input$condition1,input$condition2,input$Make_MA,input$Make_Volcano)))
+    (showModal(modalDialog(
+      if (typeof(message_from_function)!="character"){
+        paste("Error, please check the 'Error_and_Warning_Log.txt' located here:",getwd())
+      }else{
+        message_from_function
+      })))
+    
     if(typeof(message_from_function)=="character"){
       shinyjs::show("contents")
     }
-  
+    
   })
   
-
+  
 }
 
 
