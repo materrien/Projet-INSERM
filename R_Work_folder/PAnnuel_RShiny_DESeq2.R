@@ -60,6 +60,7 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
   #Everything is in a try catch to ensure that the application does not crash in the event of an error
   #If an error does occur, it was desired that the application prints the error in a txt file and tells the user that an error has occured
   tryCatch({
+    
     ###################################################################################################################################
     #File preperations for a file merge, i.e obtaining the necessary format for DESeq2 preprocessing
     ###################################################################################################################################
@@ -258,14 +259,18 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
     
     #Reached the end of the function without errors
     message<-paste("success, your file is located here:",getwd())
-    
+    print("i've reached the end")
   },
   error=function(error_message){
     outputFile <- "Error_and_Warning_Log.txt"
     writeLines(as.character(error_message), outputFile)
     message <- paste("Error, please check the 'Error_and_Warning_Log.txt' located here:",getwd())
+    print("in error")
   }
   )
+  print("before return")
+  print(typeof(message))
+  print(message)
   return (message)
 }
 
@@ -349,16 +354,7 @@ ui <- fluidPage(id="main_ui",
     
     mainPanel(
       useShinyjs(),
-      tabsetPanel(id="TabPanel",type = "tabs",
-                  tabPanel("Results_Table", tableOutput("Results")),
-                  tabPanel("Gene_List", tableOutput("Gene_list")),
-                  tabPanel("MA_Plot_without_text", plotOutput("MA_No_Text")),
-                  tabPanel("MA_Plot_with_text", plotOutput("MA_Text")),
-                  tabPanel("Volcano_Plot_without_text", plotOutput("Volcano_No_Text")),
-                  tabPanel("Volcano_Plot_with_text", plotOutput("Volcano_Text"))
-                  #tabPanel("Eventual Image?", tableOutput("table"))
-      )
-      #DT::dataTableOutput("contents",width = 'auto',height = 500)
+      DT::dataTableOutput("contents",width = 'auto',height = 500)
     )
     
     
@@ -383,14 +379,8 @@ server <- function(input, output, session) {
   # })
   ############################################################################################################################################
   
-  shinyjs::hide("TabPanel")
-  
-  hideTab(inputId = "TabPanel",target = "Results_Table")
-  hideTab(inputId = "TabPanel",target = "Gene_List")
-  hideTab(inputId = "TabPanel",target = "MA_Plot_without_text")
-  hideTab(inputId = "TabPanel",target = "MA_Plot_with_text")
-  hideTab(inputId = "TabPanel",target = "Volcano_Plot_without_text")
-  hideTab(inputId = "TabPanel",target = "Volcano_Plot_with_text")
+  shinyjs::hide("contents")
+
 
   
   #This observe event handles the setting of the directory
@@ -405,9 +395,9 @@ server <- function(input, output, session) {
         
         # launch the directory selection dialog with initial path read from the widget
         path = choose.dir(default = readDirectoryInput(session, 'directory'))
-        
         # update the widget value
         updateDirectoryInput(session, 'directory', value = path)
+        setwd(path)
       }
     }
   )
@@ -449,38 +439,22 @@ server <- function(input, output, session) {
   #So the second part of this line of code is to check the type of the 'message' that was returned, if it is of character type, all is well and it can be shown as it is,
   #If it is not of character type, it means there was an error, thus I manually add in the error message that should have been sent by the 'launchMuma' function.
   #This line of code could not be split as the stored 'message' is only present for the duration of this line of code.
-  observeEvent(input$launch,{(message <-suppressWarnings(DESeq2_pre_processing(input$file1$datapath,input$file2$datapath, 
+  observeEvent(input$launch,{(message_from_function <-suppressWarnings(DESeq2_pre_processing(input$file1$datapath,input$file2$datapath, 
                                                         input$condition1,input$condition2,input$Make_MA,input$Make_Volcano)))
-    (showModal(modalDialog(
-      if (typeof(message)!="character"){
-        paste("Error, please check the 'Error_and_Warning_Log.txt' located here:",getwd())
-      }else{
-        message
-      })))})
+  (showModal(modalDialog(
+    if (typeof(message_from_function)!="character"){
+      paste("Error, please check the 'Error_and_Warning_Log.txt' located here:",getwd())
+    }else{
+      message_from_function
+    })))
+  
+    if(typeof(message_from_function)=="character"){
+      shinyjs::show("contents")
+    }
+  
+  })
   
 
-  observeEvent(input$launch,{
-    #Checks if there was an error, an error occured if the returned message was no characters
-    print("in observe event")
-    print(typeof(message))
-    if(typeof(message)=="character"){
-      print("in if")
-      temp_var <-read.csv(file = paste(getwd(),"/",input$condition1,"vs",input$condition2,"_RESULTS_VOLCANO.csv",sep=""),check.names=FALSE)
-      print(temp_var)
-      output$Results_Table <- renderTable({read.csv(file = paste(getwd(),"/",input$condition1,"vs",input$condition2,"_RESULTS_VOLCANO.csv",sep=""),check.names=FALSE)})
-      shinyjs::show("TabPanel")
-      showTab(inputId = "TabPanel",target = "Results_Table")
-      showTab(inputId = "TabPanel",target = "Gene_List")
-      if (input$Make_MA == TRUE){
-        showTab(inputId = "TabPanel",target = "MA_Plot_without_text")
-        showTab(inputId = "TabPanel",target = "MA_Plot_with_text")
-      }
-      if (input$Make_Volcano == TRUE){
-        showTab(inputId = "TabPanel",target = "Volcano_Plot_without_text")
-        showTab(inputId = "TabPanel",target = "Volcano_Plot_with_text")
-      }
-    }
-  })
 }
 
 
