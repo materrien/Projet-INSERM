@@ -57,6 +57,12 @@ remove_Rplots <- function (Directory)
   }
 }
 
+#Checks the validity of an entered e-mail
+isValidEmail <- function(x) 
+{
+  grepl("\\<[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\>", as.character(x), 
+        ignore.case=TRUE)
+}
 
 #Create the function for Deseq2
 DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot)
@@ -313,7 +319,8 @@ ui <- dashboardPage(skin="blue",
       menuItem("Information", tabName = "info", icon = icon("book-open")),
       menuItem("Connect to database", tabName = "connect_DB",icon= icon("database")),
       menuItem("Run analysis with DESeq2", tabName = "DESeq2_analysis", icon= icon("chart-bar")),
-      menuItem("Add to gene to database", tabName = "add_DB", icon= icon("dna")),
+      menuItem("Results",tabName = "res", icon=icon("dna")),
+      menuItem("Add gene to database", tabName = "add_DB", icon= icon("plus")),
       menuItem("Citation", tabName = "citation", icon= icon("book"))
     )
     
@@ -328,7 +335,27 @@ ui <- dashboardPage(skin="blue",
       ),
       
       tabItem(tabName = "connect_DB",
-              h2("Establish connection to the database")
+              h2("Establish connection to the database"),
+              textInput("email","Email Address:"),
+              
+              selectInput("study_type", "Type of Study",
+                          choices = list("Metabolic" = "Metabolic",
+                                         "Epigenetic" = "Epigenetic",
+                                         "Metabolomic" = "Metabolomic",
+                                         "Others" = "Others"),
+                          selected = 1),
+              
+              selectInput("user_position", "Position held",
+                          choices = list("Researcher" = "Researcher",
+                                         "PhD" = "PhD",
+                                         "Student" = "Student",
+                                         "Intern" = "Intern",
+                                         "Other" = "Other"),
+                          selected = 1),
+              
+              textAreaInput("comments", "Comments", placeholder = "Feel free to add a comment",width="500px"),
+              actionButton("connect_DB", "Connect to database"),
+              textOutput("connect_db_status")
       ),
       
       tabItem(tabName = "DESeq2_analysis",
@@ -352,10 +379,10 @@ ui <- dashboardPage(skin="blue",
               
               directoryInput('directory', label = 'select a directory', value = '~'),
               #Adds the text_input which will take in the first condition
-              textInput("condition1", "Name of the first condition", "Condition_1"),
+              textInput("condition1", "Name of the condition for file 1", "Condition_1"),
               
               #Adds the text_input which will take in the first condition
-              textInput("condition2", "Name of the second condition", "Condition_2"),
+              textInput("condition2", "Name of the condition for file 2", "Condition_2"),
               
               #A simple checkbox which will allow users to choose if they want to do MA plots
               checkboxInput("Make_MA", "Create MA Plots", value = TRUE, width = NULL),
@@ -365,6 +392,10 @@ ui <- dashboardPage(skin="blue",
               
               #The action button which will set the analysis in motion, it is initially disabled to prevent users form clicking the button while the requirements are not fufilled
               disabled(actionButton("launch", "Launch Analysis"))
+      ),
+      
+      tabItem(tabName = "res",
+              h2("Results tab")
       ),
       
       tabItem(tabName = "add_DB",
@@ -399,7 +430,18 @@ server <- function(input, output, session) {
   
   shinyjs::hide("contents")
   
-  
+  #Used to check if the email is valid when clicking the 'connect' button
+  observeEvent(input$connect_DB, {(
+    if (isValidEmail(input$email)==FALSE){
+      output$connect_db_status <- renderText("Please enter a valid email address")
+    }else if (nchar(input$comments)>300){
+      output$connect_db_status <- renderText(paste("Too many characters in comment box. Characters used:",nchar(input$comments)))
+      #Would add the action of the button here!
+    }else{
+      output$connect_db_status <- renderText(paste("Email address is valid. Characters in comment box:",nchar(input$comments)))
+    }
+  )})
+
   
   #This observe event handles the setting of the directory
   observeEvent(
