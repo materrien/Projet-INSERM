@@ -41,6 +41,16 @@ if(!require("shinydashboard")){
   library(shinydashboard)
 }
 
+if(!require(RMySQL)){
+  install.packages("RMySQL")
+  library(RMySQL)
+}
+
+
+#Set up for the database
+DB <- dbConnect(RMySQL::MySQL(), user="root", host="localhost",
+                password="UpsilonLambda94", dbname="non_canonic")
+
 
 options(shiny.maxRequestSize = 100*1024^2)
 #############################################################################################################################################
@@ -103,23 +113,18 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
     rownames(merged_files)=merged_files[,1]
     merged_files <- merged_files[,-1]
     
-    print("before convert")
     #converts it to numeric
     merged_files <- data.frame(sapply(merged_files, as.numeric),check.names=F, row.names = rownames(merged_files))
     
     #Creates the matrices
     merged_files <- as.matrix(merged_files)
     
-    print("after merge")
     #Assign Condition Q1 to all of the columns/samples/patients
     condition <- factor(c(rep(variable_condition_1, num_1),rep(variable_condition_2,num_2)))
-    print("condition declaration")
     ####################################################################################
     #Create a coldata frame and instantiate the DESeqDataSet
     (col_data <- data.frame(row.names=colnames(merged_files),condition))
-    print("can't reach col_data")
     dds <- DESeqDataSetFromMatrix(countData=merged_files, colData=col_data, design=~condition)
-    print("declared col_data")
     ###################################################################################################################################
     
     dds = estimateSizeFactors(dds)
@@ -127,7 +132,6 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
     #Run the DESeq pipeline, this takes a while
     dds <- DESeq(dds)
     
-    print("run the pipeline")
     ###################################################################################################################################
     #Change the format into something that can be used by R (dds --> res)
     ###################################################################################################################################
@@ -146,7 +150,6 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
     ## Write results
     write.csv(resdata, file=paste("diffexpr_results",variable_condition_1,"vs",variable_condition_2,".csv"))
     
-    print("after res, before plots")
     ## MA plot with with text
     ###################################################################################################################################
     #Sets up the function
@@ -193,7 +196,6 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
     }
     
     
-    print("after MA plots")
     ## Volcano plot with "significant" genes in green with text
     ###################################################################################################################################
     #Sets up the function
@@ -247,7 +249,6 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
       pre_processed_file_short<-suppressWarnings(volcanoplot_no_text(resdata, lfcthresh=1, sigthresh=0.05, textcx=.8, xlim=c(-5, 5)))
     }
     
-    print("after Volcano plots")
     ###################################################################################################################################
     #Creates a file that is used to generate a list of the top 60 genes, 30 most up-regulated, and 30 most under-regulated
     
@@ -269,21 +270,78 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
     pre_processed_file_short <- pre_processed_file_short[,-1]
     
     #Reached the end of the function without errors
-    message<-paste("success, your file is located here:",getwd())
-    print("i've reached the end")
+    return_message<-paste("success, your file is located here:",getwd())
   },
   error=function(error_message){
     outputFile <- "Error_and_Warning_Log.txt"
     writeLines(as.character(error_message), outputFile)
-    message <- paste("Error, please check the 'Error_and_Warning_Log.txt' located here:",getwd())
-    print("in error")
+    return_message <- paste("Error, please check the 'Error_and_Warning_Log.txt' located here:",getwd())
   }
   )
-  print("before return")
-  print(typeof(message))
-  print(message)
-  return (message)
+
+  return_list <- list("message"=return_message,"file"=pre_processed_file_short)
+  return (return_list)
 }
+
+#Connects to the database once the user has filled in the form
+Connect_to_database <- function(){
+  DB <- dbConnect(RMySQL::MySQL(), user="root", host="localhost",
+                  password="UpsilonLambda94", dbname="non_canonic")
+  return(DB)
+}
+
+#############################################################################################################################################
+#Call the function, just temporary
+DB<-Connect_to_database()
+#############################################################################################################################################
+
+
+
+#Uses the database connection to check for non_canonical genes
+Non_canonic_analysis <- function(DB,file_to_analyze)
+{
+  sig_gene_list<-rownames(file_to_analyze)
+
+  #Initialize dataframes
+  non_canonic_results <- data.frame(
+    Gene_Symbol=character(),
+    NC_Pathway=character(), 
+    NC_Loc=character(), 
+    num_ncan=integer(),
+    stringsAsFactors=FALSE)
+  
+  canonic_results <- data.frame(
+    Gene_Symbol=character(),
+    Gene_Name = character(),
+    NC_Pathway=character(), 
+    NC_Loc=character(), 
+    num_ncan=integer(),
+    stringsAsFactors=FALSE) 
+  
+  ref_results <- data.frame(
+    Gene_Symbol=character(),
+    ref = character(),
+    stringsAsFactors=FALSE) 
+  
+  
+  for (i in 1:length(sig_gene_list)){
+    if (nrow(dbGetQuery(DB, paste0("SELECT * FROM Canonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))>0){
+      non_canonic_results <- rbind(non_canonic_results,dbGetQuery(DB, paste0("SELECT * FROM ncanonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
+      canonic_results <- rbind(canonic_results,dbGetQuery(DB, paste0("SELECT * FROM Canonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
+      ref_results <- rbind(ref_results,dbGetQuery(DB, paste0("SELECT * FROM `references` WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
+    }
+    
+  }
+  
+  #Store each dataframe in a list for return
+  
+  my_results_list <- list("sig_genes"=file_to_analyze,"ncan"=non_canonic_results,"can"=canonic_results,"refs"=ref_results)
+  
+  dbDisconnect(DB)
+  
+  return(my_results_list)
+}
+
 
 
 #Variable set up for DESeq2 function
@@ -395,7 +453,15 @@ ui <- dashboardPage(skin="blue",
       ),
       
       tabItem(tabName = "res",
-              h2("Results tab")
+              h2("Results tab"),
+              textOutput("results_status"),
+              
+              tabsetPanel(id="results_tabs",type="tabs",
+                tabPanel("Significant Genes", DT::dataTableOutput("sig_genes",width = 'auto',height = 500)),
+                tabPanel("Non_Canonic", DT::dataTableOutput("Ncan",width = 'auto',height = 500)),
+                tabPanel("Canonic", DT::dataTableOutput("Can",width = 'auto',height = 500)),
+                tabPanel("References", DT::dataTableOutput("refs",width = 'auto',height = 500))
+              )
       ),
       
       tabItem(tabName = "add_DB",
@@ -407,12 +473,37 @@ ui <- dashboardPage(skin="blue",
       )
               
     ),
-    DT::dataTableOutput("contents",width = 'auto',height = 500)
+    #DT::dataTableOutput("contents",width = 'auto',height = 500)
   )
 )
 
 #Handles the 'actions' that are done within the application
 server <- function(input, output, session) {
+  
+  #Hides the results table as they will be empty/non-existant
+  hideTab(inputId = "results_tabs", target = "Significant Genes")
+  hideTab(inputId = "results_tabs", target = "Non_Canonic")
+  hideTab(inputId = "results_tabs", target = "Canonic")
+  hideTab(inputId = "results_tabs", target = "References")
+  
+  #Create a function
+  #The function is declared here as it contains server specific objects (output), thus it can only be declared within the server
+  show_results <- function(List_of_results)
+  {
+    
+    output$sig_genes <- DT::renderDataTable({
+      DT::datatable(data=List_of_results[["sig_genes"]], options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
+    })
+    output$Ncan <- DT::renderDataTable({
+      DT::datatable(data=List_of_results[["ncan"]], options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
+    })
+    output$Can <- DT::renderDataTable({
+      DT::datatable(data=List_of_results[["can"]], options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
+    })
+    output$refs <- DT::renderDataTable({
+      DT::datatable(data=List_of_results[["refs"]], options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
+    })
+  }
   
   ############################################################################################################################################
   
@@ -428,7 +519,7 @@ server <- function(input, output, session) {
   # })
   ############################################################################################################################################
   
-  shinyjs::hide("contents")
+  #shinyjs::hide("contents")
   
   #Used to check if the email is valid when clicking the 'connect' button
   observeEvent(input$connect_DB, {(
@@ -499,21 +590,35 @@ server <- function(input, output, session) {
   #So the second part of this line of code is to check the type of the 'message' that was returned, if it is of character type, all is well and it can be shown as it is,
   #If it is not of character type, it means there was an error, thus I manually add in the error message that should have been sent by the 'launchMuma' function.
   #This line of code could not be split as the stored 'message' is only present for the duration of this line of code.
-  observeEvent(input$launch,{(message_from_function <-suppressWarnings(DESeq2_pre_processing(input$file1$datapath,input$file2$datapath, 
+  observeEvent(input$launch,{(my_list <-suppressWarnings(DESeq2_pre_processing(input$file1$datapath,input$file2$datapath, 
                                                                                              input$condition1,input$condition2,input$Make_MA,input$Make_Volcano)))
+    
+
     (showModal(modalDialog(
-      if (typeof(message_from_function)!="character"){
+      if (typeof(my_list[["message"]])!="character"){
         paste("Error, please check the 'Error_and_Warning_Log.txt' located here:",getwd())
       }else{
-        message_from_function
+        my_list[["message"]]
+        
       })))
     
-    if(typeof(message_from_function)=="character"){
-      shinyjs::show("contents")
+    if(typeof(my_list[["message"]])=="character"){
+      #shinyjs::show("contents")
     }
     
+    Final_Results <- Non_canonic_analysis(DB,my_list[["file"]])
+    #Below is the format of 'Final_Results'
+    #list("sig_genes"=file_to_analyze,"ncan"=non_canonic_results,"can"=canonic_results,"refs"=ref_results)
+    
+    
+    #Call a function to print the results
+    show_results(Final_Results)
+    showTab(inputId = "results_tabs", target = "Significant Genes")
+    showTab(inputId = "results_tabs", target = "Non_Canonic")
+    showTab(inputId = "results_tabs", target = "Canonic")
+    showTab(inputId = "results_tabs", target = "References") 
+
   })
-  
   
 }
 
