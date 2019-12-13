@@ -46,12 +46,6 @@ if(!require(RMySQL)){
   library(RMySQL)
 }
 
-
-#Set up for the database
-DB <- dbConnect(RMySQL::MySQL(), user="root", host="localhost",
-                password="UpsilonLambda94", dbname="non_canonic")
-
-
 options(shiny.maxRequestSize = 100*1024^2)
 #############################################################################################################################################
 
@@ -284,17 +278,12 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
 }
 
 #Connects to the database once the user has filled in the form
-Connect_to_database <- function(){
+Connect_to_database <- function()
+{
   DB <- dbConnect(RMySQL::MySQL(), user="root", host="localhost",
                   password="UpsilonLambda94", dbname="non_canonic")
   return(DB)
 }
-
-#############################################################################################################################################
-#Call the function, just temporary
-DB<-Connect_to_database()
-#############################################################################################################################################
-
 
 
 #Uses the database connection to check for non_canonical genes
@@ -343,28 +332,7 @@ Non_canonic_analysis <- function(DB,file_to_analyze)
 }
 
 
-
-#Variable set up for DESeq2 function
 #############################################################################################################################################
-# #The two files that will be read (Each are in the git-folder for convenience)
-# File_1 <- read.csv(file = "C:\\Users\\yohan\\Desktop\\Analyse_Bioinformatique\\TCGA_GBM\\CSVs\\True_COUNTS_NORMAL_AGE_SUBSET_10_50_Formatted_CSV_VERSION.csv",check.names=FALSE)
-# File_2 <-read.csv(file = "C:\\Users\\yohan\\Desktop\\Analyse_Bioinformatique\\TCGA_GBM\\CSVs\\True_COUNTS_NORMAL_AGE_SUBSET_69_89_Formatted_CSV_VERSION.csv",check.names=FALSE)
-# #The conditions associated with the analysis, it could be control vs patient
-# variable_condition_1 <- "young"
-# variable_condition_2 <- "old"
-# #Do they wan to generate MA plots and volcano plots?
-# do_MA_plot <-TRUE
-# do_Volcano_Plot <- TRUE
-# #Directory set up, will it be usefull?
-# #Directory Workplace!
-# setwd("C:\\Users\\yohan\\Desktop")
-
-#############################################################################################################################################
-
-
-#DESeq2_file_short <- DESeq2_pre_processing(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot)
-
-
 
 
 
@@ -373,13 +341,23 @@ ui <- dashboardPage(skin="blue",
   dashboardHeader(title="INSERM 33"),
   dashboardSidebar(
     sidebarMenu(
+      useShinyjs(),
       # Web site for the icons: https://fontawesome.com/icons?d=gallery&m=free
       menuItem("Information", tabName = "info", icon = icon("book-open")),
       menuItem("Connect to database", tabName = "connect_DB",icon= icon("database")),
       menuItem("Run analysis with DESeq2", tabName = "DESeq2_analysis", icon= icon("chart-bar")),
       menuItem("Results",tabName = "res", icon=icon("dna")),
-      menuItem("Add gene to database", tabName = "add_DB", icon= icon("plus")),
-      menuItem("Citation", tabName = "citation", icon= icon("book"))
+      menuItem("Citation", tabName = "citation", icon= icon("book")),
+      
+      #Sets up the code for the close button
+      extendShinyjs(text = "shinyjs.closeWindow = function() { window.close(); }", functions = c("closeWindow")),
+      
+      #Use of a flui row to set the button at the bottom
+      #Issue is that it is set there using pixel margins, so it will have to be manually adjusted when adding tabs
+      fluidRow(
+        column(6,style="margin-top: 600px;",actionButton("close", "Exit App"))
+      )
+      
     )
     
   ),
@@ -449,7 +427,8 @@ ui <- dashboardPage(skin="blue",
               checkboxInput("Make_Volcano", "Create Volcano Plots", value = TRUE, width = NULL),
               
               #The action button which will set the analysis in motion, it is initially disabled to prevent users form clicking the button while the requirements are not fufilled
-              disabled(actionButton("launch", "Launch Analysis"))
+              disabled(actionButton("launch", "Launch Analysis")),
+              textOutput("launch_status")
       ),
       
       tabItem(tabName = "res",
@@ -464,15 +443,12 @@ ui <- dashboardPage(skin="blue",
               )
       ),
       
-      tabItem(tabName = "add_DB",
-              h2("Add a gene to the non-canonical database")
-      ),
-      
       tabItem(tabName = "citation",
-              h2("Information about citing the use of this tool")
+              h2("How to cite this tool")
       )
-              
+      
     ),
+    
     #DT::dataTableOutput("contents",width = 'auto',height = 500)
   )
 )
@@ -505,21 +481,19 @@ server <- function(input, output, session) {
     })
   }
   
-  ############################################################################################################################################
+  observeEvent(input$close, 
+  {
+    js$closeWindow()
+    stopApp()
+  })
   
-  # #Should only appear if results have been given
-  # #Won't be DESeq2_file_short, but a read csv from getwd() and file name using the variables and known build type
-  # output$contents <- DT::renderDataTable({
-  #   
-  #   inFile1 <- DESeq2_file_short
-  #   if (is.null(inFile1))
-  #     return(NULL)
-  #   m <- read.csv(inFile1$datapath, header = TRUE)
-  #   DT::datatable(data=m, options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
-  # })
-  ############################################################################################################################################
   
-  #shinyjs::hide("contents")
+  
+  
+  #This creates a reactive variable
+  DB_Connect <- reactiveValues(
+    DB=NULL
+  )
   
   #Used to check if the email is valid when clicking the 'connect' button
   observeEvent(input$connect_DB, {(
@@ -527,9 +501,10 @@ server <- function(input, output, session) {
       output$connect_db_status <- renderText("Please enter a valid email address")
     }else if (nchar(input$comments)>300){
       output$connect_db_status <- renderText(paste("Too many characters in comment box. Characters used:",nchar(input$comments)))
-      #Would add the action of the button here!
     }else{
       output$connect_db_status <- renderText(paste("Email address is valid. Characters in comment box:",nchar(input$comments)))
+      #Change the value of the reactive variable
+      DB_Connect$DB<-Connect_to_database()
     }
   )})
 
@@ -573,11 +548,15 @@ server <- function(input, output, session) {
   
   #Enables the launch button when it all necessary prerequisites are met
   observe(if(check_if_upload_File1$check_upload_File1==1 && check_if_upload_File2$check_upload_File2==1&&
-             input$condition1!=""&&input$condition2!=""){
+             input$condition1!=""&&input$condition2!="" && is.null(DB_Connect$DB)==FALSE){
     enable("launch")
   }else{
     disable("launch")
+    if(is.null(DB_Connect$DB)==TRUE){
+      output$launch_status <- renderText("You are not yet connected to the data base")
+    }
   })
+  
   
   #The first action done when a user launches an analysis
   observeEvent(input$launch,{showModal(modalDialog("Working... you will be notified when the analysis is done"))})
@@ -606,7 +585,8 @@ server <- function(input, output, session) {
       #shinyjs::show("contents")
     }
     
-    Final_Results <- Non_canonic_analysis(DB,my_list[["file"]])
+
+    Final_Results <- Non_canonic_analysis(DB_Connect$DB,my_list[["file"]])
     #Below is the format of 'Final_Results'
     #list("sig_genes"=file_to_analyze,"ncan"=non_canonic_results,"can"=canonic_results,"refs"=ref_results)
     
@@ -625,7 +605,6 @@ server <- function(input, output, session) {
 
 #The function that runs the entire application
 shinyApp(ui=ui,server=server)#,options = list(port=6168))
-#DESeq2_file_short <- DESeq2_pre_processing(File_1, File_2, variable_condition_1, variable_condition_2, do_MA_plot, do_Volcano_Plot)
 
 
 
