@@ -11,6 +11,11 @@ if(!require(DESeq2)){
   library(DESeq2)
 }
 
+if(!require(ggplot2)){
+  install.packages(ggplot2)
+  library(ggplot2)
+}
+
 if(!require(shiny)){
   install.packages("shiny")
   library(shiny)
@@ -144,10 +149,10 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
     ## Write results
     write.csv(resdata, file=paste("diffexpr_results",variable_condition_1,"vs",variable_condition_2,".csv"))
     
-    ## MA plot with with text
+    ## MA plots
     ###################################################################################################################################
     #Sets up the function
-    maplot_text <- function (res, thresh=0.05, labelsig=TRUE, textcx=1, ...) {
+    maplot <- function (res, thresh=0.05, labelsig=TRUE, textcx=1, ...) {
       tryCatch({
         with(res, plot(baseMean, log2FoldChange, pch=20, cex=.5, log="x", ...))
         with(subset(res, padj<thresh), points(baseMean, log2FoldChange, col="red", pch=20, cex=1.5))
@@ -162,34 +167,14 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
     #Calls the function if the condition is met
     if (do_MA_plot==TRUE){
       png(paste("diffexpr_maplot_",variable_condition_1,"vs",variable_condition_2,"_Text.png"), 7500, 7000, pointsize=15)
-      suppressWarnings(maplot_text(resdata, main="MA Plot"))
-      View(resdata)
+      suppressWarnings(maplot(resdata, main="MA Plot"))
       invisible(dev.off())
-    }
-    
-    
-    ## MA plot with no text
-    ###################################################################################################################################
-    #Sets up the function
-    maplot_no_text <- function (res, thresh=0.05, labelsig=TRUE, textcx=1, ...) {
-      tryCatch({
-        with(res, plot(baseMean, log2FoldChange, pch=20, cex=.5, log="x", ...))
-        with(subset(res, padj<thresh), points(baseMean, log2FoldChange, col="red", pch=20, cex=1.5))
-        if (labelsig) {
-          require(calibrate)
-          with(subset(res, padj<thresh))#, textxy(baseMean, log2FoldChange, labs=Gene, cex=textcx, col=2))
-        }
-      },error=function(error_message){
-      })
-    }
-    
-    #Calls the function is the condition is met
-    if (do_MA_plot==TRUE){
+      #With text
       png(paste("diffexpr_maplot_",variable_condition_1,"vs",variable_condition_2,"_No_Text.png"), 2500, 2000, pointsize=15)
-      suppressWarnings(maplot_no_text(resdata, main="MA Plot"))
+      suppressWarnings(maplot(resdata, main="MA Plot",labelsig = FALSE))
       invisible(dev.off())
     }
-    
+
     
     ## Volcano plot with "significant" genes in green with text
     ###################################################################################################################################
@@ -327,11 +312,11 @@ Non_canonic_analysis <- function(DB,file_to_analyze)
   
   my_results_list <- list("sig_genes"=file_to_analyze,"ncan"=non_canonic_results,"can"=canonic_results,"refs"=ref_results)
   
-  write.table(my_results_list[["ncan"]],file = "test_non_canonic_results.txt",row.names = FALSE)
+  write.table(my_results_list[["ncan"]],file = "non_canonic_results.txt",row.names = FALSE)
   
-  write.table(my_results_list[["can"]],file = "test_canonic_results.txt",row.names = FALSE)
+  write.table(my_results_list[["can"]],file = "canonic_results.txt",row.names = FALSE)
   
-  write.table(my_results_list[["refs"]],file = "test_references.txt",row.names = FALSE)
+  write.table(my_results_list[["refs"]],file = "references.txt",row.names = FALSE)
   
   
   
@@ -340,7 +325,7 @@ Non_canonic_analysis <- function(DB,file_to_analyze)
   return(my_results_list)
 }
 
-custom_MA_plot <- function (fig_file,sig_pval=0.05, labelsig=FALSE, textcx=1, ...) 
+custom_MA_plot <- function (fig_file, sig_pval=0.05, labelsig=FALSE, textcx=1, ...) 
 {
     file_to_plot <-read.csv(file = fig_file,check.names=FALSE)
 
@@ -350,6 +335,23 @@ custom_MA_plot <- function (fig_file,sig_pval=0.05, labelsig=FALSE, textcx=1, ..
       require(calibrate)
       with(subset(file_to_plot, padj<sig_pval), textxy(baseMean, log2FoldChange, labs=Gene, cex=textcx, col=2))
     }
+
+}
+
+custom_Volcano_plot <- function (fig_file, lfcthresh=1, sigthresh=0.05, main="Volcano Plot", legendpos="bottomright", labelsig=FALSE, textcx=1, ...) 
+{
+
+  file_to_plot <-read.csv(file = fig_file,check.names=FALSE)
+  
+  with(file_to_plot, plot(log2FoldChange, -log10(pvalue), pch=20, main=main, ...))
+  with(subset(file_to_plot, padj<sigthresh ), points(log2FoldChange, -log10(pvalue), pch=20, col="red", ...))
+  with(subset(file_to_plot, abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="orange", ...))
+  with(subset(file_to_plot, padj<sigthresh & abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="green", ...))
+  if (labelsig) {
+    require(calibrate)
+    with(subset(file_to_plot, padj<sigthresh & abs(log2FoldChange)>lfcthresh), textxy(log2FoldChange, -log10(pvalue), labs=Gene, cex=textcx, ...))
+  }
+  legend(legendpos, xjust=1, yjust=1, legend=c(paste("FDR<",sigthresh,sep=""), paste("|LogFC|>",lfcthresh,sep=""), "both"), pch=20, col=c("red","orange","green"))
 
 }
 
@@ -369,7 +371,8 @@ ui <- dashboardPage(skin="blue",
       menuItem("Connect to database", tabName = "connect_DB",icon= icon("database")),
       menuItem("Run analysis with DESeq2", tabName = "DESeq2_analysis", icon= icon("chart-bar")),
       menuItem("Results",tabName = "res", icon=icon("dna")),
-      menuItem("Custom figures",tabName = "cus_fig", icon=icon("file-image")),
+      menuItem("Custom MA plots",tabName = "cus_MA", icon=icon("file-image")),
+      menuItem("Custom Volcano plots",tabName = "cus_Volcano", icon=icon("file-image")),
       menuItem("Citation", tabName = "citation", icon= icon("book")),
       
       #Sets up the code for the close button
@@ -466,27 +469,65 @@ ui <- dashboardPage(skin="blue",
               )
       ),
       
-      tabItem(tabName = "cus_fig",
-              h2("Generate custom MA and Volcano plots"),
-              fileInput("file_custom_fig", "Choose CSV File",
+      tabItem(tabName = "cus_MA",
+              h2("Generate custom MA plots"),
+              
+              fileInput("file_custom_MA", "Choose CSV File",
                         accept = c(
                           "text/csv",
                           "text/comma-separated-values,text/plain",
                           ".csv")
               ),
+              downloadButton('download_MA_Plot', 'Download Plot'),
+
               fluidRow(
                 column(3,
-                radioButtons("fig_type","Figure Type",
-                             c("Volcano Plot"="volcano",
-                               "MA Plot"="MA")),
+                       numericInput("p_value_thresh_MA", label = "P-value significance", value = 0.05,min = 0.0,max = 1,step = 0.01),
                 ),
-                column(4, offset=1,
-                       numericInput("p_value_thresh", label = "P-value significance", value = 0.05,min = 0.0,max = 1,step = 0.01),
-                )
+                column(3,
+                       textInput("title_of_MA_plot","Title of the plot","my_MA_plot")
+                ),  
+                
+                column(3,
+                       tags$b("Add text to red genes"),
+                       checkboxInput("text_choice_MA","Render text", value=FALSE, width = NULL)
+                ),
+                column(3,
+                       tags$b("Create the plot"),
+                       actionButton("create_MA","create_MA")
+                ),
+                
               
               ),
-              plotOutput("custom_fig_plot"),
-              actionButton("create_plot","create_plot")
+              plotOutput("custom_MA_plot")
+              
+              
+      ),
+      
+      tabItem(tabName = "cus_Volcano",
+              h2("Generate custom Volcano plots"),
+              
+              fileInput("file_custom_Volcano", "Choose CSV File",
+                        accept = c(
+                          "text/csv",
+                          "text/comma-separated-values,text/plain",
+                          ".csv")
+              ),
+              
+              fluidRow(
+                column(3,
+                       numericInput("p_value_thresh_Volcano", label = "P-value significance", value = 0.05,min = 0.0,max = 1,step = 0.01),
+                ),
+                column(3,offset=1,
+                       checkboxInput("text_choice_Volcano","Render text", value=FALSE, width = NULL)
+                ),
+                column(3,
+                       textInput("title_of_Volcano_plot","Title of the plot","my_Volcano_plot")
+                ),
+                
+              ),
+              plotOutput("custom_Volcano_plot"),
+              actionButton("create_Volcano","create_Volcano")
               
       ),
       
@@ -534,9 +575,30 @@ server <- function(input, output, session) {
     stopApp()
   })
   
-  observeEvent(input$create_plot,{output$custom_fig_plot <-renderPlot({custom_MA_plot(input$file_custom_fig$datapath, main="MA Plot")})
+ 
+  
+  
+   #Create the MA plot
+  MA_Plot <- observeEvent(input$create_MA,{output$custom_MA_plot <-renderPlot({isolate({custom_MA_plot(input$file_custom_MA$datapath, 
+                                                                                           sig_pval = input$p_value_thresh_MA, 
+                                                                                           main=input$title_of_MA_plot,
+                                                                                           labelsig = input$text_choice_MA)})})
   })
   
+  #Download the MA plot
+  # output$download_MA_Plot <- downloadHandler(
+  #   filename = function(){paste(input$title_of_MA_plot,".png",sep="")},
+  #   content = function(file){
+  #     dev.new()
+  #     png(paste(input$title_of_MA_plot,".png"), 5200, 5000, pointsize=20)
+  #     suppressWarnings(MA_Plot())
+  #     invisible(dev.off())
+  #   }
+  # )
+  
+  #Create the volcano plot
+  observeEvent(input$create_Volcano,{output$custom_Volcano_plot <-renderPlot({custom_Volcano_plot(input$file_custom_Volcano$datapath, main="Volcano Plot")})
+  },once = TRUE)
   #output$custom_fig_plot <-renderPlot({custom_MA_plot(input$file_custom_fig$datapath, main="MA Plot")})
   
   
