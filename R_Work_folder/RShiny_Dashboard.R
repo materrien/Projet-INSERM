@@ -381,7 +381,7 @@ ui <- dashboardPage(skin="blue",
       #Use of a flui row to set the button at the bottom
       #Issue is that it is set there using pixel margins, so it will have to be manually adjusted when adding tabs
       fluidRow(
-        column(6,style="margin-top: 550px;",actionButton("close", "Exit App"))
+        column(6,style="margin-top: 500px;",actionButton("close", "Exit App"))
       )
       
     )
@@ -471,14 +471,19 @@ ui <- dashboardPage(skin="blue",
       
       tabItem(tabName = "cus_MA",
               h2("Generate custom MA plots"),
-              
-              fileInput("file_custom_MA", "Choose CSV File",
+              fluidRow(
+                column(4,
+                       fileInput("file_custom_MA", "Choose CSV File",
                         accept = c(
                           "text/csv",
                           "text/comma-separated-values,text/plain",
                           ".csv")
+                       )
+                ),
+                column(4,style="margin-top: 25px;",offset=2,
+                       downloadButton('download_MA_Plot', 'Download Plot')
+                       )
               ),
-              downloadButton('download_MA_Plot', 'Download Plot'),
 
               fluidRow(
                 column(3,
@@ -578,23 +583,32 @@ server <- function(input, output, session) {
  
   
   
-   #Create the MA plot
-  MA_Plot <- observeEvent(input$create_MA,{output$custom_MA_plot <-renderPlot({isolate({custom_MA_plot(input$file_custom_MA$datapath, 
+  #Create the MA plot
+  observeEvent(input$create_MA,{output$custom_MA_plot <-renderPlot({isolate({custom_MA_plot(input$file_custom_MA$datapath, 
                                                                                            sig_pval = input$p_value_thresh_MA, 
                                                                                            main=input$title_of_MA_plot,
                                                                                            labelsig = input$text_choice_MA)})})
   })
   
   #Download the MA plot
-  # output$download_MA_Plot <- downloadHandler(
-  #   filename = function(){paste(input$title_of_MA_plot,".png",sep="")},
-  #   content = function(file){
-  #     dev.new()
-  #     png(paste(input$title_of_MA_plot,".png"), 5200, 5000, pointsize=20)
-  #     suppressWarnings(MA_Plot())
-  #     invisible(dev.off())
-  #   }
-  # )
+  output$download_MA_Plot <- downloadHandler(
+    filename = function(){
+      paste(input$title_of_MA_plot,".png",sep="")
+    },
+    content = function(file){
+      if (input$text_choice_MA==FALSE){
+        png(file,width=1200, height=1000, pointsize=20)
+      }else{
+        png(file,width=5200, height=5000, pointsize=20)
+      }
+      
+      isolate({custom_MA_plot(input$file_custom_MA$datapath, 
+                              sig_pval = input$p_value_thresh_MA, 
+                              main=input$title_of_MA_plot,
+                              labelsig = input$text_choice_MA)})
+      dev.off()
+    }
+  )
   
   #Create the volcano plot
   observeEvent(input$create_Volcano,{output$custom_Volcano_plot <-renderPlot({custom_Volcano_plot(input$file_custom_Volcano$datapath, main="Volcano Plot")})
