@@ -47,9 +47,9 @@ ref_results <- data.frame(
 
 for (i in 1:length(sig_gene_list)){
   if (nrow(dbGetQuery(DB, paste0("SELECT * FROM Canonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))>0){
-    non_canonic_results <- rbind(non_canonic_results,dbGetQuery(DB, paste0("SELECT * FROM ncanonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
-    canonic_results <- rbind(canonic_results,dbGetQuery(DB, paste0("SELECT * FROM Canonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
-    ref_results <- rbind(ref_results,dbGetQuery(DB, paste0("SELECT * FROM `references` WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
+    non_canonic_results <- rbind(non_canonic_results,dbGetQuery(DB, paste0("SELECT Gene_Symbol, Gene_Name, NC_Pathway as Non_Canonic_Pathway, NC_Loc as Non_Canonic_Location FROM ncanonic join canonic using (Gene_Symbol) WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
+    canonic_results <- rbind(canonic_results,dbGetQuery(DB, paste0("SELECT Gene_Symbol, Gene_Name, C_Pathway as Canonical_Pathway, C_Loc as Canonical_Location FROM Canonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
+    ref_results <- rbind(ref_results,dbGetQuery(DB, paste0("SELECT Gene_Symbol, Gene_Name, ref as `References` FROM `references` join Canonic using (Gene_Symbol) WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
   }
   
 }
@@ -60,6 +60,12 @@ dbDisconnect(DB)
 
 my_results_list <- list("ncan"=non_canonic_results,"can"=canonic_results,"refs"=ref_results)
 
+
+write.table(my_results_list[["ncan"]],file = "test_non_canonic_results.txt",row.names = FALSE)
+
+write.table(my_results_list[["can"]],file = "test_canonic_results.txt",row.names = FALSE)
+
+write.table(my_results_list[["refs"]],file = "test_references.txt",row.names = FALSE)
 
 getwd()
 #write.csv(result_table,file="test_write_result.csv")

@@ -163,6 +163,7 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
     if (do_MA_plot==TRUE){
       png(paste("diffexpr_maplot_",variable_condition_1,"vs",variable_condition_2,"_Text.png"), 7500, 7000, pointsize=15)
       suppressWarnings(maplot_text(resdata, main="MA Plot"))
+      View(resdata)
       invisible(dev.off())
     }
     
@@ -260,8 +261,8 @@ DESeq2_pre_processing <- function(File_1, File_2, variable_condition_1, variable
     ###################################################################################################################################
     
     pre_processed_file_short <- pre_processed_file_short[,1:7]
-    rownames(pre_processed_file_short) <- pre_processed_file_short[,1]
-    pre_processed_file_short <- pre_processed_file_short[,-1]
+    # rownames(pre_processed_file_short) <- pre_processed_file_short[,1]
+    # pre_processed_file_short <- pre_processed_file_short[,-1]
     
     #Reached the end of the function without errors
     return_message<-paste("success, your file is located here:",getwd())
@@ -315,9 +316,9 @@ Non_canonic_analysis <- function(DB,file_to_analyze)
   
   for (i in 1:length(sig_gene_list)){
     if (nrow(dbGetQuery(DB, paste0("SELECT * FROM Canonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))>0){
-      non_canonic_results <- rbind(non_canonic_results,dbGetQuery(DB, paste0("SELECT * FROM ncanonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
-      canonic_results <- rbind(canonic_results,dbGetQuery(DB, paste0("SELECT * FROM Canonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
-      ref_results <- rbind(ref_results,dbGetQuery(DB, paste0("SELECT * FROM `references` WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
+      non_canonic_results <- rbind(non_canonic_results,dbGetQuery(DB, paste0("SELECT Gene_Symbol, Gene_Name, NC_Pathway as Non_Canonic_Pathway, NC_Loc as Non_Canonic_Location FROM ncanonic join canonic using (Gene_Symbol) WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
+      canonic_results <- rbind(canonic_results,dbGetQuery(DB, paste0("SELECT Gene_Symbol, Gene_Name, C_Pathway as Canonical_Pathway, C_Loc as Canonical_Location FROM Canonic WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
+      ref_results <- rbind(ref_results,dbGetQuery(DB, paste0("SELECT Gene_Symbol, Gene_Name, ref as `References` FROM `references` join Canonic using (Gene_Symbol) WHERE Gene_Symbol = '" , sig_gene_list[i]  ,"';")))
     }
     
   }
@@ -326,9 +327,30 @@ Non_canonic_analysis <- function(DB,file_to_analyze)
   
   my_results_list <- list("sig_genes"=file_to_analyze,"ncan"=non_canonic_results,"can"=canonic_results,"refs"=ref_results)
   
+  write.table(my_results_list[["ncan"]],file = "test_non_canonic_results.txt",row.names = FALSE)
+  
+  write.table(my_results_list[["can"]],file = "test_canonic_results.txt",row.names = FALSE)
+  
+  write.table(my_results_list[["refs"]],file = "test_references.txt",row.names = FALSE)
+  
+  
+  
   dbDisconnect(DB)
   
   return(my_results_list)
+}
+
+custom_MA_plot <- function (fig_file,sig_pval=0.05, labelsig=FALSE, textcx=1, ...) 
+{
+    file_to_plot <-read.csv(file = fig_file,check.names=FALSE)
+
+    with(file_to_plot, plot(baseMean, log2FoldChange, col="black", pch=20, cex=.5, log="x", ...))
+    with(subset(file_to_plot, padj<sig_pval), points(baseMean, log2FoldChange, col="red", pch=20, cex=1.5))
+    if (labelsig) {
+      require(calibrate)
+      with(subset(file_to_plot, padj<sig_pval), textxy(baseMean, log2FoldChange, labs=Gene, cex=textcx, col=2))
+    }
+
 }
 
 
@@ -347,6 +369,7 @@ ui <- dashboardPage(skin="blue",
       menuItem("Connect to database", tabName = "connect_DB",icon= icon("database")),
       menuItem("Run analysis with DESeq2", tabName = "DESeq2_analysis", icon= icon("chart-bar")),
       menuItem("Results",tabName = "res", icon=icon("dna")),
+      menuItem("Custom figures",tabName = "cus_fig", icon=icon("file-image")),
       menuItem("Citation", tabName = "citation", icon= icon("book")),
       
       #Sets up the code for the close button
@@ -355,7 +378,7 @@ ui <- dashboardPage(skin="blue",
       #Use of a flui row to set the button at the bottom
       #Issue is that it is set there using pixel margins, so it will have to be manually adjusted when adding tabs
       fluidRow(
-        column(6,style="margin-top: 600px;",actionButton("close", "Exit App"))
+        column(6,style="margin-top: 550px;",actionButton("close", "Exit App"))
       )
       
     )
@@ -421,10 +444,10 @@ ui <- dashboardPage(skin="blue",
               textInput("condition2", "Name of the condition for file 2", "Condition_2"),
               
               #A simple checkbox which will allow users to choose if they want to do MA plots
-              checkboxInput("Make_MA", "Create MA Plots", value = TRUE, width = NULL),
+              checkboxInput("Make_MA", "Create standard MA Plots", value = TRUE, width = NULL),
               
               #A check box which will allow users to choose if they want to do Volcano plots
-              checkboxInput("Make_Volcano", "Create Volcano Plots", value = TRUE, width = NULL),
+              checkboxInput("Make_Volcano", "Create standard Volcano Plots", value = TRUE, width = NULL),
               
               #The action button which will set the analysis in motion, it is initially disabled to prevent users form clicking the button while the requirements are not fufilled
               disabled(actionButton("launch", "Launch Analysis")),
@@ -441,6 +464,30 @@ ui <- dashboardPage(skin="blue",
                 tabPanel("Canonic", DT::dataTableOutput("Can",width = 'auto',height = 500)),
                 tabPanel("References", DT::dataTableOutput("refs",width = 'auto',height = 500))
               )
+      ),
+      
+      tabItem(tabName = "cus_fig",
+              h2("Generate custom MA and Volcano plots"),
+              fileInput("file_custom_fig", "Choose CSV File",
+                        accept = c(
+                          "text/csv",
+                          "text/comma-separated-values,text/plain",
+                          ".csv")
+              ),
+              fluidRow(
+                column(3,
+                radioButtons("fig_type","Figure Type",
+                             c("Volcano Plot"="volcano",
+                               "MA Plot"="MA")),
+                ),
+                column(4, offset=1,
+                       numericInput("p_value_thresh", label = "P-value significance", value = 0.05,min = 0.0,max = 1,step = 0.01),
+                )
+              
+              ),
+              plotOutput("custom_fig_plot"),
+              actionButton("create_plot","create_plot")
+              
       ),
       
       tabItem(tabName = "citation",
@@ -487,7 +534,10 @@ server <- function(input, output, session) {
     stopApp()
   })
   
+  observeEvent(input$create_plot,{output$custom_fig_plot <-renderPlot({custom_MA_plot(input$file_custom_fig$datapath, main="MA Plot")})
+  })
   
+  #output$custom_fig_plot <-renderPlot({custom_MA_plot(input$file_custom_fig$datapath, main="MA Plot")})
   
   
   #This creates a reactive variable
@@ -550,10 +600,13 @@ server <- function(input, output, session) {
   observe(if(check_if_upload_File1$check_upload_File1==1 && check_if_upload_File2$check_upload_File2==1&&
              input$condition1!=""&&input$condition2!="" && is.null(DB_Connect$DB)==FALSE){
     enable("launch")
+    output$launch_status <- renderText("")
   }else{
     disable("launch")
     if(is.null(DB_Connect$DB)==TRUE){
       output$launch_status <- renderText("You are not yet connected to the data base")
+    }else{
+      output$launch_status <- renderText("Connected to database")
     }
   })
   
