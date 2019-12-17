@@ -271,7 +271,6 @@ Connect_to_database <- function()
   return(DB)
 }
 
-
 #Uses the database connection to check for non_canonical genes
 Non_canonic_analysis <- function(DB,file_to_analyze)
 {
@@ -480,8 +479,9 @@ ui <- dashboardPage(skin="blue",
                           ".csv")
                        )
                 ),
-                column(4,style="margin-top: 25px;",offset=2,
-                       downloadButton('download_MA_Plot', 'Download Plot')
+                column(4,offset=2,
+                       downloadButton('download_MA_Plot', 'Download Plot'),
+                       downloadButton('download_MA_data','Download Data')
                        )
               ),
 
@@ -500,42 +500,72 @@ ui <- dashboardPage(skin="blue",
                 column(3,
                        tags$b("Create the plot"),
                        actionButton("create_MA","create_MA")
-                ),
-                
-              
+                )
               ),
               plotOutput("custom_MA_plot")
               
               
       ),
-      
       tabItem(tabName = "cus_Volcano",
               h2("Generate custom Volcano plots"),
-              
-              fileInput("file_custom_Volcano", "Choose CSV File",
-                        accept = c(
-                          "text/csv",
-                          "text/comma-separated-values,text/plain",
-                          ".csv")
+              fluidRow(
+                column(4,
+                       fileInput("file_custom_Volcano", "Choose CSV File",
+                                 accept = c(
+                                   "text/csv",
+                                   "text/comma-separated-values,text/plain",
+                                   ".csv")
+                       )
+                ),
+                column(2, offset=2,
+                       downloadButton('download_Volcano_Plot', 'Download Plot'),
+                       #br()/break is not working
+                       br(),
+                       downloadButton('download_Volcano_Data', 'Download Data')
+                )
+                # column(3,style="margin-top: 25px;",offset=1,
+                #        downloadButton('download_Volcano_Data', 'Download Data')
+                # )
               ),
               
               fluidRow(
                 column(3,
                        numericInput("p_value_thresh_Volcano", label = "P-value significance", value = 0.05,min = 0.0,max = 1,step = 0.01),
                 ),
-                column(3,offset=1,
+                column(3,
+                       textInput("title_of_Volcano_plot","Title of the plot","my_Volcano_plot")
+                ),  
+                
+                column(3,
+                       tags$b("Add text to red genes"),
                        checkboxInput("text_choice_Volcano","Render text", value=FALSE, width = NULL)
                 ),
                 column(3,
-                       textInput("title_of_Volcano_plot","Title of the plot","my_Volcano_plot")
+                       tags$b("Create the plot"),
+                       actionButton("create_Volcano","create_Volcano")
                 ),
-                
               ),
-              plotOutput("custom_Volcano_plot"),
-              actionButton("create_Volcano","create_Volcano")
-              
+              fluidRow(
+                column(4,offset=1,
+                       numericInput("lfc_value_thresh", label = "LFC threshold", value = 1,min = 0.0,max = 5,step = 0.5),
+                ),
+                column(4,offset=1,
+                       selectInput("legend_position", "Position of legend on graph",
+                                   choices = list("bottomleft" = "bottomleft",
+                                                  "bottom" = "bottom",
+                                                  "bottomright" = "bottomright",
+                                                  "left" = "left",
+                                                  "center" = "center",
+                                                  "right" = "right",
+                                                  "topleft" = "topleft",
+                                                  "top" = "top",
+                                                  "topright"="topright"),
+                                   
+                                   selected = 1),
+                )
+              ),
+              plotOutput("custom_Volcano_plot")
       ),
-      
       tabItem(tabName = "citation",
               h2("How to cite this tool")
       )
@@ -610,12 +640,74 @@ server <- function(input, output, session) {
     }
   )
   
+  
+  
+  #Download the MA plot data
+  output$download_MA_data <- downloadHandler(
+    filename = function(){
+      paste(input$title_of_MA_plot,".csv",sep="")
+    },
+    content = function(file){
+      x <-read.csv(file = input$file_custom_MA$datapath,check.names=FALSE)
+      x <-subset(x, padj<input$p_value_thresh_MA)
+      #Remove an unecessary row
+      x<-x[,-1]
+      write.csv(x,file)
+    }
+  )
+  
+  
+  
   #Create the volcano plot
-  observeEvent(input$create_Volcano,{output$custom_Volcano_plot <-renderPlot({custom_Volcano_plot(input$file_custom_Volcano$datapath, main="Volcano Plot")})
-  },once = TRUE)
-  #output$custom_fig_plot <-renderPlot({custom_MA_plot(input$file_custom_fig$datapath, main="MA Plot")})
+  observeEvent(input$create_Volcano,{output$custom_Volcano_plot <-renderPlot({isolate({custom_Volcano_plot(input$file_custom_Volcano$datapath, 
+                                                                                            lfcthresh = input$lfc_value_thresh,
+                                                                                            sigthresh = input$p_value_thresh_Volcano,
+                                                                                            main=input$title_of_Volcano_plot,
+                                                                                            legendpos=input$legend_position,
+                                                                                            labelsig = input$text_choice_MA)})})
+  })
   
   
+  
+  
+  #Download the Volcano plot
+  output$download_Volcano_Plot <- downloadHandler(
+    filename = function(){
+      paste(input$title_of_Volcano_plot,".png",sep="")
+    },
+    content = function(file){
+
+      if (input$text_choice_Volcano==FALSE){
+        png(file,width=1200, height=1000, pointsize=20)
+      }else{
+        png(file,width=5200, height=5000, pointsize=20)
+      }
+      
+      isolate({custom_Volcano_plot(input$file_custom_Volcano$datapath, 
+                                   lfcthresh = input$lfc_value_thresh,
+                                   sigthresh = input$p_value_thresh_Volcano,
+                                   main=input$title_of_Volcano_plot,
+                                   legendpos=input$legend_position,
+                                   labelsig = input$text_choice_MA)})
+      dev.off()
+    }
+  )
+  
+  #Download the Volcano plot data
+  output$download_Volcano_Data <- downloadHandler(
+    filename = function(){
+      paste(input$title_of_Volcano_plot,".csv",sep="")
+    },
+    content = function(file){
+      x <-read.csv(file = input$file_custom_Volcano$datapath,check.names=FALSE)
+      x <-subset(x, padj<input$p_value_thresh_Volcano & abs(log2FoldChange)>input$lfc_value_thresh)
+      #Remove an unecessary row
+      x<-x[,-1]
+      write.csv(x,file)
+    }
+  )
+
+
   #This creates a reactive variable
   DB_Connect <- reactiveValues(
     DB=NULL
