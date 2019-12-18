@@ -368,8 +368,8 @@ custom_Volcano_plot <- function (fig_file, lfcthresh=1, sigthresh=0.05, main="Vo
   if (use_alternate_colors==TRUE){
     main_color="blue"
     sig_both_color="green"
-    sig_padj="magenta"
-    sig_lfc="orange"
+    sig_padj_color="magenta"
+    sig_lfc_color="orange"
   }else{
     main_color="black"
     sig_both_color="green"
@@ -746,7 +746,8 @@ server <- function(input, output, session) {
       isolate({custom_MA_plot(input$file_custom_MA$datapath, 
                               sig_pval = input$p_value_thresh_MA, 
                               main=input$title_of_MA_plot,
-                              labelsig = input$text_choice_MA)})
+                              labelsig = input$text_choice_MA,
+                              use_alternate_color = input$alternate_color_scheme_MA)})
       dev.off()
     }
   )
@@ -822,7 +823,8 @@ server <- function(input, output, session) {
                                    sigthresh = input$p_value_thresh_Volcano,
                                    main=input$title_of_Volcano_plot,
                                    legendpos=input$legend_position,
-                                   labelsig = input$text_choice_MA)})
+                                   labelsig = input$text_choice_MA,
+                                   use_alternate_colors = input$alternate_color_scheme_Volcano)})
       dev.off()
     }
   )
