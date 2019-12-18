@@ -360,20 +360,33 @@ custom_MA_plot <- function (fig_file, sig_pval=0.05, labelsig=FALSE, textcx=1,us
 
 }
 
-custom_Volcano_plot <- function (fig_file, lfcthresh=1, sigthresh=0.05, main="Volcano Plot", legendpos="bottomright", labelsig=FALSE, textcx=1, ...) 
+custom_Volcano_plot <- function (fig_file, lfcthresh=1, sigthresh=0.05, main="Volcano Plot", legendpos="bottomright", labelsig=FALSE, textcx=1, use_alternate_colors=FALSE, ...) 
 {
 
   file_to_plot <-read.csv(file = fig_file,check.names=FALSE)
   
-  with(file_to_plot, plot(log2FoldChange, -log10(pvalue), pch=20, main=main, ...))
-  with(subset(file_to_plot, padj<sigthresh ), points(log2FoldChange, -log10(pvalue), pch=20, col="red", ...))
-  with(subset(file_to_plot, abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="orange", ...))
-  with(subset(file_to_plot, padj<sigthresh & abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="green", ...))
+  if (use_alternate_colors==TRUE){
+    main_color="blue"
+    sig_both_color="green"
+    sig_padj="magenta"
+    sig_lfc="orange"
+  }else{
+    main_color="black"
+    sig_both_color="green"
+    sig_padj_color="red"
+    sig_lfc_color="orange"
+  }
+  
+  
+  with(file_to_plot, plot(log2FoldChange, -log10(pvalue), pch=20, main=main,col=main_color, ...))
+  with(subset(file_to_plot, padj<sigthresh ), points(log2FoldChange, -log10(pvalue), pch=20, col=sig_padj_color, ...))
+  with(subset(file_to_plot, abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col=sig_lfc_color, ...))
+  with(subset(file_to_plot, padj<sigthresh & abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col=sig_both_color, ...))
   if (labelsig) {
     require(calibrate)
     with(subset(file_to_plot, padj<sigthresh & abs(log2FoldChange)>lfcthresh), textxy(log2FoldChange, -log10(pvalue), labs=Gene, cex=textcx, ...))
   }
-  legend(legendpos, xjust=1, yjust=1, legend=c(paste("FDR<",sigthresh,sep=""), paste("|LogFC|>",lfcthresh,sep=""), "both"), pch=20, col=c("red","orange","green"))
+  legend(legendpos, xjust=1, yjust=1, legend=c(paste("FDR<",sigthresh,sep=""), paste("|LogFC|>",lfcthresh,sep=""), "both"), pch=20, col=c(sig_padj_color,sig_lfc_color,sig_both_color))
 
 }
 
@@ -564,16 +577,17 @@ ui <- dashboardPage(skin="blue",
                                 
                                 fluidRow(
                                   column(3,
+                                         checkboxInput("text_choice_MA","Add gene names", value=FALSE, width = NULL),
+                                         checkboxInput("alternate_color_scheme_MA","Use alternate colors",value = FALSE, width = NULL)
+                                  ),
+                                  column(3,
                                          numericInput("p_value_thresh_MA", label = "P-value significance", value = 0.05,min = 0.0,max = 1,step = 0.01),
                                   ),
                                   column(3,
                                          textInput("title_of_MA_plot","Title of the plot","my_MA_plot")
                                   ),  
                                   
-                                  column(3,
-                                         tags$b("Add text to red genes"),
-                                         checkboxInput("text_choice_MA","Render text", value=FALSE, width = NULL)
-                                  ),
+                                  
                                   column(3,
                                          tags$b("Create the plot"),
                                          disabled(actionButton("create_MA","create_MA"))
@@ -611,16 +625,18 @@ ui <- dashboardPage(skin="blue",
                                 
                                 fluidRow(
                                   column(3,
+                                         checkboxInput("text_choice_Volcano","Render text", value=FALSE, width = NULL),
+                                         checkboxInput("alternate_color_scheme_Volcano","Use alternate colors",value = FALSE, width = NULL)
+                                         
+                                  ),
+                                  column(3,
                                          numericInput("p_value_thresh_Volcano", label = "P-value significance", value = 0.05,min = 0.0,max = 1,step = 0.01),
                                   ),
                                   column(3,
                                          textInput("title_of_Volcano_plot","Title of the plot","my_Volcano_plot")
                                   ),  
                                   
-                                  column(3,
-                                         tags$b("Add text to red genes"),
-                                         checkboxInput("text_choice_Volcano","Render text", value=FALSE, width = NULL)
-                                  ),
+                                  
                                   column(3,
                                          tags$b("Create the plot"),
                                          disabled(actionButton("create_Volcano","create_Volcano"))
@@ -711,7 +727,8 @@ server <- function(input, output, session) {
   observeEvent(input$create_MA,{output$custom_MA_plot <-renderPlot({isolate({custom_MA_plot(input$file_custom_MA$datapath, 
                                                                                             sig_pval = input$p_value_thresh_MA, 
                                                                                             main=input$title_of_MA_plot,
-                                                                                            labelsig = input$text_choice_MA)})})
+                                                                                            labelsig = input$text_choice_MA,
+                                                                                            use_alternate_color = input$alternate_color_scheme_MA)})})
   })
   
   #Download the MA plot
@@ -782,7 +799,8 @@ server <- function(input, output, session) {
                                                                                                            sigthresh = input$p_value_thresh_Volcano,
                                                                                                            main=input$title_of_Volcano_plot,
                                                                                                            legendpos=input$legend_position,
-                                                                                                           labelsig = input$text_choice_MA)})})
+                                                                                                           labelsig = input$text_choice_MA,
+                                                                                                           use_alternate_colors = input$alternate_color_scheme_Volcano)})})
   })
   
   
