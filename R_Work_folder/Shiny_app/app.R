@@ -370,6 +370,8 @@ custom_Volcano_plot <- function (fig_file, lfcthresh=1, sigthresh=0.05, main="Vo
 {
 ui <- dashboardPage(skin="blue",
                     dashboardHeader(title="INSERM 33"),
+                    #Side bar (tabs) declarations
+                    #############################################################################################################################################
                     dashboardSidebar(
                       sidebarMenu(
                         useShinyjs(),
@@ -393,17 +395,24 @@ ui <- dashboardPage(skin="blue",
                         )
                         
                       )
-                      
+                    
                     ),
+                    #############################################################################################################################################
+                    
                     #The main panel is set up to only contain a datatable of the dataset the user will enter, the height is limited as to ensure the table is adapted to low resolution screens
                     
                     dashboardBody(
                       useShinyjs(),
                       tabItems(
+                        #Info tab
+                        #############################################################################################################################################
                         tabItem(tabName = "info",
                                 h2("Information tab content")
                         ),
+                        #############################################################################################################################################
                         
+                        #Connect database tab
+                        #############################################################################################################################################
                         tabItem(tabName = "connect_DB",
                                 h2("Establish connection to the database"),
                                 textInput("email","Email Address:"),
@@ -427,7 +436,10 @@ ui <- dashboardPage(skin="blue",
                                 actionButton("connect_DB", "Connect to database"),
                                 textOutput("connect_db_status")
                         ),
+                        #############################################################################################################################################
                         
+                        #DESeq2 analysis tab
+                        #############################################################################################################################################
                         tabItem(tabName = "DESeq2_analysis",
                                 h2("Run an analysis using DESeq2"),
                                 
@@ -464,6 +476,11 @@ ui <- dashboardPage(skin="blue",
                                 disabled(actionButton("launch", "Launch Analysis")),
                                 textOutput("launch_status")
                         ),
+                        
+                        #############################################################################################################################################
+                        
+                        #Gene list analysis tab
+                        #############################################################################################################################################
                         tabItem(tabName = "gene_list_analysis",
                                 h2("Non-canonical analysis of a gene list"),
                                 fixedPage(
@@ -494,6 +511,11 @@ ui <- dashboardPage(skin="blue",
                                 )
                         ),
                         
+                        #############################################################################################################################################
+                        
+                        #Results tab
+                        #############################################################################################################################################
+                        
                         tabItem(tabName = "res",
                                 h2("Results tab"),
                                 textOutput("results_status"),
@@ -506,6 +528,10 @@ ui <- dashboardPage(skin="blue",
                                 )
                         ),
                         
+                        #############################################################################################################################################
+                        
+                        #Custom MA plot tab
+                        #############################################################################################################################################
                         tabItem(tabName = "cus_MA",
                                 h2("Generate custom MA plots"),
                                 fluidRow(
@@ -518,8 +544,8 @@ ui <- dashboardPage(skin="blue",
                                          )
                                   ),
                                   column(4,offset=2,
-                                         downloadButton('download_MA_Plot', 'Download Plot'),
-                                         downloadButton('download_MA_data','Download Data')
+                                         disabled(downloadButton('download_MA_plot', 'Download Plot')),
+                                         disabled(downloadButton('download_MA_data','Download Data'))
                                   )
                                 ),
                                 
@@ -537,13 +563,17 @@ ui <- dashboardPage(skin="blue",
                                   ),
                                   column(3,
                                          tags$b("Create the plot"),
-                                         actionButton("create_MA","create_MA")
+                                         disabled(actionButton("create_MA","create_MA"))
                                   )
                                 ),
                                 plotOutput("custom_MA_plot")
                                 
                                 
                         ),
+                        #############################################################################################################################################
+                        
+                        #Custom Volcano plot tab
+                        #############################################################################################################################################
                         tabItem(tabName = "cus_Volcano",
                                 h2("Generate custom Volcano plots"),
                                 fluidRow(
@@ -556,10 +586,10 @@ ui <- dashboardPage(skin="blue",
                                          )
                                   ),
                                   column(2, offset=2,
-                                         downloadButton('download_Volcano_Plot', 'Download Plot'),
+                                         disabled(downloadButton('download_Volcano_plot', 'Download Plot')),
                                          #br()/break is not working
                                          br(),
-                                         downloadButton('download_Volcano_Data', 'Download Data')
+                                         disabled(downloadButton('download_Volcano_data', 'Download Data'))
                                   )
                                   # column(3,style="margin-top: 25px;",offset=1,
                                   #        downloadButton('download_Volcano_Data', 'Download Data')
@@ -580,7 +610,7 @@ ui <- dashboardPage(skin="blue",
                                   ),
                                   column(3,
                                          tags$b("Create the plot"),
-                                         actionButton("create_Volcano","create_Volcano")
+                                         disabled(actionButton("create_Volcano","create_Volcano"))
                                   ),
                                 ),
                                 fluidRow(
@@ -604,13 +634,17 @@ ui <- dashboardPage(skin="blue",
                                 ),
                                 plotOutput("custom_Volcano_plot")
                         ),
+                        #############################################################################################################################################
+                        
+                        #Citation tab
+                        #############################################################################################################################################
                         tabItem(tabName = "citation",
                                 h2("How to cite this tool")
                         )
+                        #############################################################################################################################################
                         
                       ),
-                      
-                      #DT::dataTableOutput("contents",width = 'auto',height = 500)
+
                     )
 )
 }
@@ -618,6 +652,9 @@ ui <- dashboardPage(skin="blue",
 
 #Handles the 'actions' that are done within the application
 server <- function(input, output, session) {
+  
+  #Results page set up and function declaration
+  #############################################################################################################################################
   
   #Hides the results table as they will be empty/non-existant
   hideTab(inputId = "results_tabs", target = "Significant Genes")
@@ -644,20 +681,19 @@ server <- function(input, output, session) {
     })
   }
   
+  #############################################################################################################################################
+  
+  #Exit's observe event
+  #############################################################################################################################################
   observeEvent(input$close,{
                  js$closeWindow()
                  stopApp()
                })
   
-  output$gene_list_table <- DT::renderDataTable({
-    
-    inFile <- input$gene_list_file
-    if (is.null(inFile))
-      return(NULL)
-    m <- read.csv(inFile$datapath, header = TRUE)
-    DT::datatable(data=m, options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
-  })
+  #############################################################################################################################################
   
+  #Custom MA plot
+  #############################################################################################################################################
   
   #Create the MA plot
   observeEvent(input$create_MA,{output$custom_MA_plot <-renderPlot({isolate({custom_MA_plot(input$file_custom_MA$datapath, 
@@ -667,7 +703,7 @@ server <- function(input, output, session) {
   })
   
   #Download the MA plot
-  output$download_MA_Plot <- downloadHandler(
+  output$download_MA_plot <- downloadHandler(
     filename = function(){
       paste(input$title_of_MA_plot,".png",sep="")
     },
@@ -703,6 +739,30 @@ server <- function(input, output, session) {
   )
   
   
+  check_if_upload_MA_file <- reactiveValues(
+    check_upload_MA_file=0
+  )
+  
+  #Sets the check_if_upload variable to one if a file has been entered by the user
+  observeEvent(input$file_custom_MA, {(check_if_upload_MA_file$check_upload_MA_file <- c(1))})
+  
+  
+  #Enables the create and download buttons when it all necessary prerequisites are met
+  observe(if(check_if_upload_MA_file$check_upload_MA_file==1){
+    enable("create_MA")
+    enable("download_MA_plot")
+    enable("download_MA_data")
+  }else{
+    disable("create_MA")
+    disable("download_MA_plot")
+    disable("download_MA_data")
+    
+  })
+  
+  #############################################################################################################################################
+  
+  #Custom volcano plot
+  #############################################################################################################################################
   
   #Create the volcano plot
   observeEvent(input$create_Volcano,{output$custom_Volcano_plot <-renderPlot({isolate({custom_Volcano_plot(input$file_custom_Volcano$datapath, 
@@ -714,10 +774,8 @@ server <- function(input, output, session) {
   })
   
   
-  
-  
   #Download the Volcano plot
-  output$download_Volcano_Plot <- downloadHandler(
+  output$download_Volcano_plot <- downloadHandler(
     filename = function(){
       paste(input$title_of_Volcano_plot,".png",sep="")
     },
@@ -740,7 +798,7 @@ server <- function(input, output, session) {
   )
   
   #Download the Volcano plot data
-  output$download_Volcano_Data <- downloadHandler(
+  output$download_Volcano_data <- downloadHandler(
     filename = function(){
       paste(input$title_of_Volcano_plot,".csv",sep="")
     },
@@ -754,6 +812,29 @@ server <- function(input, output, session) {
   )
   
   
+  check_if_upload_Volcano_file <- reactiveValues(
+    check_upload_Volcano_file=0
+  )
+  
+  #Sets the check_if_upload variable to one if a file has been entered by the user
+  observeEvent(input$file_custom_Volcano, {(check_if_upload_Volcano_file$check_upload_Volcano_file <- c(1))})
+  
+  
+  #Enables the create and download buttons when it all necessary prerequisites are met
+  observe(if(check_if_upload_Volcano_file$check_upload_Volcano_file==1){
+    enable("create_Volcano")
+    enable("download_Volcano_plot")
+    enable("download_Volcano_data")
+  }else{
+    disable("create_Volcano")
+    disable("download_Volcano_plot")
+    disable("download_Volcano_data")
+  })
+  
+  #############################################################################################################################################
+  
+  #Database connection and DB reactive value
+  #############################################################################################################################################
   #This creates a reactive variable
   DB_Connect <- reactiveValues(
     DB=NULL
@@ -771,7 +852,10 @@ server <- function(input, output, session) {
       DB_Connect$DB<-Connect_to_database()
     }
   )})
-  
+  #############################################################################################################################################
+
+  #Directory set up
+  #############################################################################################################################################
   
   #This observe event handles the setting of the directory for DESeq2
   observeEvent(
@@ -811,9 +895,20 @@ server <- function(input, output, session) {
       }
     }
   )
-  
   #############################################################################################################################################
   
+  #Reactive variables for gene_list_analysis and table creation
+  #############################################################################################################################################
+  
+  
+  output$gene_list_table <- DT::renderDataTable({
+    
+    inFile <- input$gene_list_file
+    if (is.null(inFile))
+      return(NULL)
+    m <- read.csv(inFile$datapath, header = TRUE)
+    DT::datatable(data=m, options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
+  })
   #This creates a reactive variable which will be used as a verification for the enabling of the launch button (DESeq2)
   #Using this, the application will prevent the user from starting an analysis without having entered a dataset
   check_if_upload_gene_list_file <- reactiveValues(
@@ -852,6 +947,9 @@ server <- function(input, output, session) {
                })
   #############################################################################################################################################
   
+  #Reactive variables DESeq2 analysis
+  #############################################################################################################################################
+  
   #This creates a reactive variable which will be used as a verification for the enabling of the launch button (DESeq2)
   #Using this, the application will prevent the user from starting an analysis without having entered a dataset
   check_if_upload_File1_DESeq2 <- reactiveValues(
@@ -883,7 +981,9 @@ server <- function(input, output, session) {
       output$launch_status <- renderText("Connected to database")
     }
   })
+  #############################################################################################################################################
   
+  #DESeq2 observe event
   #############################################################################################################################################
   
   #The first action done when a user launches an analysis
@@ -928,6 +1028,9 @@ server <- function(input, output, session) {
     
   })
   
+  
+  
+  #############################################################################################################################################
 }
 
 
