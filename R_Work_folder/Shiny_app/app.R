@@ -1,7 +1,7 @@
 
 #############################################################################################################################################
-source('server.R')
-source('ui.R')
+#source('server.R')
+#source('ui.R')
 
 
 #############################################################################################################################################
@@ -328,6 +328,13 @@ Non_canonic_analysis <- function(DB,file_to_analyze)
   return(my_results_list)
 }
 
+read_csv_function <- function(datapath)
+{
+  new_file <- read.csv(file = datapath,check.names=FALSE)
+  rownames(new_file) = new_file [,1]
+  return (new_file)
+}
+
 custom_MA_plot <- function (fig_file, sig_pval=0.05, labelsig=FALSE, textcx=1, ...) 
 {
     file_to_plot <-read.csv(file = fig_file,check.names=FALSE)
@@ -359,10 +366,570 @@ custom_Volcano_plot <- function (fig_file, lfcthresh=1, sigthresh=0.05, main="Vo
 }
 
 
+#The ui for the application
+{
+ui <- dashboardPage(skin="blue",
+                    dashboardHeader(title="INSERM 33"),
+                    dashboardSidebar(
+                      sidebarMenu(
+                        useShinyjs(),
+                        # Web site for the icons: https://fontawesome.com/icons?d=gallery&m=free
+                        menuItem("Information", tabName = "info", icon = icon("book-open")),
+                        menuItem("Connect to database", tabName = "connect_DB",icon= icon("database")),
+                        menuItem("Run analysis with DESeq2", tabName = "DESeq2_analysis", icon= icon("chart-bar")),
+                        menuItem("Analyze a gene list", tabName = "gene_list_analysis", icon= icon("list-ul")),
+                        menuItem("Results",tabName = "res", icon=icon("dna")),
+                        menuItem("Custom MA plots",tabName = "cus_MA", icon=icon("file-image")),
+                        menuItem("Custom Volcano plots",tabName = "cus_Volcano", icon=icon("file-image")),
+                        menuItem("Citation", tabName = "citation", icon= icon("book")),
+                        
+                        #Sets up the code for the close button
+                        extendShinyjs(text = "shinyjs.closeWindow = function() { window.close(); }", functions = c("closeWindow")),
+                        
+                        #Use of a flui row to set the button at the bottom
+                        #Issue is that it is set there using pixel margins, so it will have to be manually adjusted when adding tabs
+                        fluidRow(
+                          column(6,style="margin-top: 450px;",actionButton("close", "Exit App"))
+                        )
+                        
+                      )
+                      
+                    ),
+                    #The main panel is set up to only contain a datatable of the dataset the user will enter, the height is limited as to ensure the table is adapted to low resolution screens
+                    
+                    dashboardBody(
+                      useShinyjs(),
+                      tabItems(
+                        tabItem(tabName = "info",
+                                h2("Information tab content")
+                        ),
+                        
+                        tabItem(tabName = "connect_DB",
+                                h2("Establish connection to the database"),
+                                textInput("email","Email Address:"),
+                                
+                                selectInput("study_type", "Type of Study",
+                                            choices = list("Metabolic" = "Metabolic",
+                                                           "Epigenetic" = "Epigenetic",
+                                                           "Metabolomic" = "Metabolomic",
+                                                           "Others" = "Others"),
+                                            selected = 1),
+                                
+                                selectInput("user_position", "Position held",
+                                            choices = list("Researcher" = "Researcher",
+                                                           "PhD" = "PhD",
+                                                           "Student" = "Student",
+                                                           "Intern" = "Intern",
+                                                           "Other" = "Other"),
+                                            selected = 1),
+                                
+                                textAreaInput("comments", "Comments", placeholder = "Feel free to add a comment",width="500px"),
+                                actionButton("connect_DB", "Connect to database"),
+                                textOutput("connect_db_status")
+                        ),
+                        
+                        tabItem(tabName = "DESeq2_analysis",
+                                h2("Run an analysis using DESeq2"),
+                                
+                                
+                                useShinyjs(),
+                                #Setting up the file input system of the application
+                                fileInput("file1", "Choose CSV File 1",
+                                          accept = c(
+                                            "text/csv",
+                                            "text/comma-separated-values,text/plain",
+                                            ".csv")
+                                ),
+                                fileInput("file2", "Choose CSV File 2",
+                                          accept = c(
+                                            "text/csv",
+                                            "text/comma-separated-values,text/plain",
+                                            ".csv")
+                                ),
+                                
+                                directoryInput('directory_DESeq2', label = 'select a directory', value = '~'),
+                                #Adds the text_input which will take in the first condition
+                                textInput("condition1", "Name of the condition for file 1", "Condition_1"),
+                                
+                                #Adds the text_input which will take in the first condition
+                                textInput("condition2", "Name of the condition for file 2", "Condition_2"),
+                                
+                                #A simple checkbox which will allow users to choose if they want to do MA plots
+                                checkboxInput("Make_MA", "Create standard MA Plots", value = TRUE, width = NULL),
+                                
+                                #A check box which will allow users to choose if they want to do Volcano plots
+                                checkboxInput("Make_Volcano", "Create standard Volcano Plots", value = TRUE, width = NULL),
+                                
+                                #The action button which will set the analysis in motion, it is initially disabled to prevent users form clicking the button while the requirements are not fufilled
+                                disabled(actionButton("launch", "Launch Analysis")),
+                                textOutput("launch_status")
+                        ),
+                        tabItem(tabName = "gene_list_analysis",
+                                h2("Non-canonical analysis of a gene list"),
+                                fixedPage(
+                                  fixedRow(
+                                    column(4,
+                                           fileInput("gene_list_file", "Choose a csv file",
+                                            multiple = TRUE,
+                                            accept = c("text/csv",
+                                                       "text/comma-separated-values,text/plain",
+                                                       ".csv")),
+                                           
+                                           ),
+                                    column(6, 
+                                           directoryInput('directory_gene_list', label = 'select a directory', value = '~')
+                                           ),
+                                  ),
+                                  fixedRow(
+                                    column(3,
+                                           disabled(actionButton("launch_list_analysis", "Launch Analysis")),
+                                           textOutput("launch_gene_list_status")
+                                           ),
+                                  ),
+                                
+                                  
+                                  #textOutput("launch_gene_list_status")
+                                  
+                                  DT::dataTableOutput("gene_list_table",width = 'auto',height = 500)
+                                )
+                        ),
+                        
+                        tabItem(tabName = "res",
+                                h2("Results tab"),
+                                textOutput("results_status"),
+                                
+                                tabsetPanel(id="results_tabs",type="tabs",
+                                            tabPanel("Significant Genes", DT::dataTableOutput("sig_genes",width = 'auto',height = 500)),
+                                            tabPanel("Non_Canonic", DT::dataTableOutput("Ncan",width = 'auto',height = 500)),
+                                            tabPanel("Canonic", DT::dataTableOutput("Can",width = 'auto',height = 500)),
+                                            tabPanel("References", DT::dataTableOutput("refs",width = 'auto',height = 500))
+                                )
+                        ),
+                        
+                        tabItem(tabName = "cus_MA",
+                                h2("Generate custom MA plots"),
+                                fluidRow(
+                                  column(4,
+                                         fileInput("file_custom_MA", "Choose CSV File",
+                                                   accept = c(
+                                                     "text/csv",
+                                                     "text/comma-separated-values,text/plain",
+                                                     ".csv")
+                                         )
+                                  ),
+                                  column(4,offset=2,
+                                         downloadButton('download_MA_Plot', 'Download Plot'),
+                                         downloadButton('download_MA_data','Download Data')
+                                  )
+                                ),
+                                
+                                fluidRow(
+                                  column(3,
+                                         numericInput("p_value_thresh_MA", label = "P-value significance", value = 0.05,min = 0.0,max = 1,step = 0.01),
+                                  ),
+                                  column(3,
+                                         textInput("title_of_MA_plot","Title of the plot","my_MA_plot")
+                                  ),  
+                                  
+                                  column(3,
+                                         tags$b("Add text to red genes"),
+                                         checkboxInput("text_choice_MA","Render text", value=FALSE, width = NULL)
+                                  ),
+                                  column(3,
+                                         tags$b("Create the plot"),
+                                         actionButton("create_MA","create_MA")
+                                  )
+                                ),
+                                plotOutput("custom_MA_plot")
+                                
+                                
+                        ),
+                        tabItem(tabName = "cus_Volcano",
+                                h2("Generate custom Volcano plots"),
+                                fluidRow(
+                                  column(4,
+                                         fileInput("file_custom_Volcano", "Choose CSV File",
+                                                   accept = c(
+                                                     "text/csv",
+                                                     "text/comma-separated-values,text/plain",
+                                                     ".csv")
+                                         )
+                                  ),
+                                  column(2, offset=2,
+                                         downloadButton('download_Volcano_Plot', 'Download Plot'),
+                                         #br()/break is not working
+                                         br(),
+                                         downloadButton('download_Volcano_Data', 'Download Data')
+                                  )
+                                  # column(3,style="margin-top: 25px;",offset=1,
+                                  #        downloadButton('download_Volcano_Data', 'Download Data')
+                                  # )
+                                ),
+                                
+                                fluidRow(
+                                  column(3,
+                                         numericInput("p_value_thresh_Volcano", label = "P-value significance", value = 0.05,min = 0.0,max = 1,step = 0.01),
+                                  ),
+                                  column(3,
+                                         textInput("title_of_Volcano_plot","Title of the plot","my_Volcano_plot")
+                                  ),  
+                                  
+                                  column(3,
+                                         tags$b("Add text to red genes"),
+                                         checkboxInput("text_choice_Volcano","Render text", value=FALSE, width = NULL)
+                                  ),
+                                  column(3,
+                                         tags$b("Create the plot"),
+                                         actionButton("create_Volcano","create_Volcano")
+                                  ),
+                                ),
+                                fluidRow(
+                                  column(4,offset=1,
+                                         numericInput("lfc_value_thresh", label = "LFC threshold", value = 1,min = 0.0,max = 5,step = 0.5),
+                                  ),
+                                  column(4,offset=1,
+                                         selectInput("legend_position", "Position of legend on graph",
+                                                     choices = list("bottomleft" = "bottomleft",
+                                                                    "bottom" = "bottom",
+                                                                    "bottomright" = "bottomright",
+                                                                    "left" = "left",
+                                                                    "center" = "center",
+                                                                    "right" = "right",
+                                                                    "topleft" = "topleft",
+                                                                    "top" = "top",
+                                                                    "topright"="topright"),
+                                                     
+                                                     selected = 1),
+                                  )
+                                ),
+                                plotOutput("custom_Volcano_plot")
+                        ),
+                        tabItem(tabName = "citation",
+                                h2("How to cite this tool")
+                        )
+                        
+                      ),
+                      
+                      #DT::dataTableOutput("contents",width = 'auto',height = 500)
+                    )
+)
+}
 #############################################################################################################################################
+
+#Handles the 'actions' that are done within the application
+server <- function(input, output, session) {
+  
+  #Hides the results table as they will be empty/non-existant
+  hideTab(inputId = "results_tabs", target = "Significant Genes")
+  hideTab(inputId = "results_tabs", target = "Non_Canonic")
+  hideTab(inputId = "results_tabs", target = "Canonic")
+  hideTab(inputId = "results_tabs", target = "References")
+  
+  #Create a function
+  #The function is declared here as it contains server specific objects (output), thus it can only be declared within the server
+  show_results <- function(List_of_results)
+  {
+    
+    output$sig_genes <- DT::renderDataTable({
+      DT::datatable(data=List_of_results[["sig_genes"]], options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
+    })
+    output$Ncan <- DT::renderDataTable({
+      DT::datatable(data=List_of_results[["ncan"]], options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
+    })
+    output$Can <- DT::renderDataTable({
+      DT::datatable(data=List_of_results[["can"]], options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
+    })
+    output$refs <- DT::renderDataTable({
+      DT::datatable(data=List_of_results[["refs"]], options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
+    })
+  }
+  
+  observeEvent(input$close,{
+                 js$closeWindow()
+                 stopApp()
+               })
+  
+  output$gene_list_table <- DT::renderDataTable({
+    
+    inFile <- input$gene_list_file
+    if (is.null(inFile))
+      return(NULL)
+    m <- read.csv(inFile$datapath, header = TRUE)
+    DT::datatable(data=m, options=list(scrollX = TRUE,scrollY=TRUE,paging=FALSE),class = 'cell-border stripe', rownames = FALSE, fillContainer = TRUE)
+  })
+  
+  
+  #Create the MA plot
+  observeEvent(input$create_MA,{output$custom_MA_plot <-renderPlot({isolate({custom_MA_plot(input$file_custom_MA$datapath, 
+                                                                                            sig_pval = input$p_value_thresh_MA, 
+                                                                                            main=input$title_of_MA_plot,
+                                                                                            labelsig = input$text_choice_MA)})})
+  })
+  
+  #Download the MA plot
+  output$download_MA_Plot <- downloadHandler(
+    filename = function(){
+      paste(input$title_of_MA_plot,".png",sep="")
+    },
+    content = function(file){
+      if (input$text_choice_MA==FALSE){
+        png(file,width=1200, height=1000, pointsize=20)
+      }else{
+        png(file,width=5200, height=5000, pointsize=20)
+      }
+      
+      isolate({custom_MA_plot(input$file_custom_MA$datapath, 
+                              sig_pval = input$p_value_thresh_MA, 
+                              main=input$title_of_MA_plot,
+                              labelsig = input$text_choice_MA)})
+      dev.off()
+    }
+  )
+  
+  
+  
+  #Download the MA plot data
+  output$download_MA_data <- downloadHandler(
+    filename = function(){
+      paste(input$title_of_MA_plot,".csv",sep="")
+    },
+    content = function(file){
+      x <-read.csv(file = input$file_custom_MA$datapath,check.names=FALSE)
+      x <-subset(x, padj<input$p_value_thresh_MA)
+      #Remove an unecessary row
+      x<-x[,-1]
+      write.csv(x,file)
+    }
+  )
+  
+  
+  
+  #Create the volcano plot
+  observeEvent(input$create_Volcano,{output$custom_Volcano_plot <-renderPlot({isolate({custom_Volcano_plot(input$file_custom_Volcano$datapath, 
+                                                                                                           lfcthresh = input$lfc_value_thresh,
+                                                                                                           sigthresh = input$p_value_thresh_Volcano,
+                                                                                                           main=input$title_of_Volcano_plot,
+                                                                                                           legendpos=input$legend_position,
+                                                                                                           labelsig = input$text_choice_MA)})})
+  })
+  
+  
+  
+  
+  #Download the Volcano plot
+  output$download_Volcano_Plot <- downloadHandler(
+    filename = function(){
+      paste(input$title_of_Volcano_plot,".png",sep="")
+    },
+    content = function(file){
+      
+      if (input$text_choice_Volcano==FALSE){
+        png(file,width=1200, height=1000, pointsize=20)
+      }else{
+        png(file,width=5200, height=5000, pointsize=20)
+      }
+      
+      isolate({custom_Volcano_plot(input$file_custom_Volcano$datapath, 
+                                   lfcthresh = input$lfc_value_thresh,
+                                   sigthresh = input$p_value_thresh_Volcano,
+                                   main=input$title_of_Volcano_plot,
+                                   legendpos=input$legend_position,
+                                   labelsig = input$text_choice_MA)})
+      dev.off()
+    }
+  )
+  
+  #Download the Volcano plot data
+  output$download_Volcano_Data <- downloadHandler(
+    filename = function(){
+      paste(input$title_of_Volcano_plot,".csv",sep="")
+    },
+    content = function(file){
+      x <-read.csv(file = input$file_custom_Volcano$datapath,check.names=FALSE)
+      x <-subset(x, padj<input$p_value_thresh_Volcano & abs(log2FoldChange)>input$lfc_value_thresh)
+      #Remove an unecessary row
+      x<-x[,-1]
+      write.csv(x,file)
+    }
+  )
+  
+  
+  #This creates a reactive variable
+  DB_Connect <- reactiveValues(
+    DB=NULL
+  )
+  
+  #Used to check if the email is valid when clicking the 'connect' button
+  observeEvent(input$connect_DB, {(
+    if (isValidEmail(input$email)==FALSE){
+      output$connect_db_status <- renderText("Please enter a valid email address")
+    }else if (nchar(input$comments)>300){
+      output$connect_db_status <- renderText(paste("Too many characters in comment box. Characters used:",nchar(input$comments)))
+    }else{
+      output$connect_db_status <- renderText(paste("Email address is valid. Characters in comment box:",nchar(input$comments)))
+      #Change the value of the reactive variable
+      DB_Connect$DB<-Connect_to_database()
+    }
+  )})
+  
+  
+  #This observe event handles the setting of the directory for DESeq2
+  observeEvent(
+    ignoreNULL = TRUE,
+    eventExpr = {
+      input$directory_DESeq2
+    },
+    handlerExpr = {
+      if (input$directory_DESeq2 > 0) {
+        # condition prevents handler execution on initial app launch
+        
+        # launch the directory selection dialog with initial path read from the widget
+        path = choose.dir(default = readDirectoryInput(session, 'directory_DESeq2'))
+        # update the widget value
+        updateDirectoryInput(session, 'directory_DESeq2', value = path)
+        setwd(path)
+      }
+    }
+  )
+  
+  
+  #This observe event handles the setting of the directory for gene list analysis
+  observeEvent(
+    ignoreNULL = TRUE,
+    eventExpr = {
+      input$directory_gene_list
+    },
+    handlerExpr = {
+      if (input$directory_gene_list > 0) {
+        # condition prevents handler execution on initial app launch
+        
+        # launch the directory selection dialog with initial path read from the widget
+        path = choose.dir(default = readDirectoryInput(session, 'directory_gene_list'))
+        # update the widget value
+        updateDirectoryInput(session, 'directory_gene_list', value = path)
+        setwd(path)
+      }
+    }
+  )
+  
+  #############################################################################################################################################
+  
+  #This creates a reactive variable which will be used as a verification for the enabling of the launch button (DESeq2)
+  #Using this, the application will prevent the user from starting an analysis without having entered a dataset
+  check_if_upload_gene_list_file <- reactiveValues(
+    check_upload_gene_list_file=0
+  )
+  
+  #Sets the check_if_upload variable to one if a file has been entered by the user
+  observeEvent(input$gene_list_file, {(check_if_upload_gene_list_file$check_upload_gene_list_file <- c(1))})
+  
+  
+  #Enables the launch_gene_list button when it all necessary prerequisites are met
+  observe(if(check_if_upload_gene_list_file$check_upload_gene_list_file==1 && is.null(DB_Connect$DB)==FALSE){
+    enable("launch_list_analysis")
+    output$launch_gene_list_status <- renderText("")
+  }else{
+    disable("launch_list_analysis")
+    if(is.null(DB_Connect$DB)==TRUE){
+      output$launch_gene_list_status <- renderText("You are not yet connected to the data base")
+    }else{
+      output$launch_gene_list_status <- renderText("Connected to database")
+    }
+  })
+  
+  observeEvent(input$launch_list_analysis,{showModal(modalDialog("Working... you will be notified when the analysis is done"))})
+
+  observeEvent(input$launch_list_analysis,{(the_file <- read_csv_function(input$gene_list_file$datapath))
+              (gene_list_results <- Non_canonic_analysis(DB_Connect$DB,the_file))
+               show_results(gene_list_results)
+               
+               showModal(modalDialog("Done! your results have been downloaded and can be viewed in the results tab"))
+               
+               #showTab(inputId = "results_tabs", target = "Significant Genes")
+               showTab(inputId = "results_tabs", target = "Non_Canonic")
+               showTab(inputId = "results_tabs", target = "Canonic")
+               showTab(inputId = "results_tabs", target = "References")
+               })
+  #############################################################################################################################################
+  
+  #This creates a reactive variable which will be used as a verification for the enabling of the launch button (DESeq2)
+  #Using this, the application will prevent the user from starting an analysis without having entered a dataset
+  check_if_upload_File1_DESeq2 <- reactiveValues(
+    check_upload_File1_DESeq2=0
+  )
+  
+  #Sets the check_if_upload variable to one if a file has been entered by the user
+  observeEvent(input$file1, {(check_if_upload_File1_DESeq2$check_upload_File1_DESeq2 <- c(1))})
+  
+  #This creates a reactive variable which will be used as a verification for the enabling of the launch button (DESeq2)
+  #Using this, the application will prevent the user from starting an analysis without having entered a dataset
+  check_if_upload_File2_DESeq2 <- reactiveValues(
+    check_upload_File2_DESeq2=0
+  )
+  
+  #Sets the check_if_upload variable to one if a file has been entered by the user
+  observeEvent(input$file2, {(check_if_upload_File2_DESeq2$check_upload_File2_DESeq2 <- c(1))})
+  
+  #Enables the launch button when it all necessary prerequisites are met
+  observe(if(check_if_upload_File1_DESeq2$check_upload_File1_DESeq2==1 && check_if_upload_File2_DESeq2$check_upload_File2_DESeq2==1&&
+             input$condition1!=""&&input$condition2!="" && is.null(DB_Connect$DB)==FALSE){
+    enable("launch")
+    output$launch_status <- renderText("")
+  }else{
+    disable("launch")
+    if(is.null(DB_Connect$DB)==TRUE){
+      output$launch_status <- renderText("You are not yet connected to the data base")
+    }else{
+      output$launch_status <- renderText("Connected to database")
+    }
+  })
+  
+  #############################################################################################################################################
+  
+  #The first action done when a user launches an analysis
+  observeEvent(input$launch,{showModal(modalDialog("Working... you will be notified when the analysis is done"))})
+  
+  
+  #Okay, so this one is complexe, this line of code does several things at once, and this was the only way I found to circumvent a certain error
+  #This line starts by holding the message send by the launchMuma function, if the Launch function works well, it will return a string of characters, no issues here
+  #If the launch function has an error in it's 'catch', the function returns itself as a variable of type 'closure', I was unable to prevent this
+  #This means that the code can't simply show the message return as in some instances the message will not be of character type
+  #So the second part of this line of code is to check the type of the 'message' that was returned, if it is of character type, all is well and it can be shown as it is,
+  #If it is not of character type, it means there was an error, thus I manually add in the error message that should have been sent by the 'launchMuma' function.
+  #This line of code could not be split as the stored 'message' is only present for the duration of this line of code.
+  observeEvent(input$launch,{(my_list <-suppressWarnings(DESeq2_pre_processing(input$file1$datapath,input$file2$datapath, 
+                                                                               input$condition1,input$condition2,input$Make_MA,input$Make_Volcano)))
+    
+    
+    (showModal(modalDialog(
+      if (typeof(my_list[["message"]])!="character"){
+        paste("Error, please check the 'Error_and_Warning_Log.txt' located here:",getwd())
+      }else{
+        my_list[["message"]]
+        
+      })))
+    
+    if(typeof(my_list[["message"]])=="character"){
+      #shinyjs::show("contents")
+    }
+    
+    
+    Final_Results <- Non_canonic_analysis(DB_Connect$DB,my_list[["file"]])
+    #Below is the format of 'Final_Results'
+    #list("sig_genes"=file_to_analyze,"ncan"=non_canonic_results,"can"=canonic_results,"refs"=ref_results)
+    
+    
+    #Call a function to print the results
+    show_results(Final_Results)
+    showTab(inputId = "results_tabs", target = "Significant Genes")
+    showTab(inputId = "results_tabs", target = "Non_Canonic")
+    showTab(inputId = "results_tabs", target = "Canonic")
+    showTab(inputId = "results_tabs", target = "References") 
+    
+  })
+  
+}
+
 
 #The function that runs the entire application
 shinyApp(ui=ui,server=server)#,options = list(port=6168))
-
-
-
