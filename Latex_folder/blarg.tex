@@ -3,8 +3,8 @@
 \let\ifluatex\relax
 
 \documentclass[11pt]{article}
-\author{Ugo Vidal, Marie Terrien, Alexis Dupis, and Yohan Lefol}
-\title{INSERM 33 Project follow up \#1}
+\author{Yohan Lefol, Marie Terrien, Alexis Dupis, and Ugo Vidal}
+\title{Working Title}
 
 \usepackage{hyperref}
 \usepackage{graphicx}
@@ -13,8 +13,79 @@
 \begin{document}
 \maketitle
 
-\section{Introduction}
-During the course of the meeting between INSERM 33 and prof. Urruty as well as prof. Foroughi, we discussed several aspect of the projects, however the focus remained on the project management that we, INSERM 33, have already done, and what should be done in addition to the work that was presented.
+\section{Introduction \label{intro}}
+The definition between canonical and non-canonical pathways is not very clear, not does it have a clear cut definition.
+We describe canonical pathways as pathways that are well defined in the science field, such as glycolysis. In contrast to this, we define non-canonical pathways as being one or several genes that have an alternate (non-canonical) function which causes them to be a part of a non-standard pathway.
+
+Our team has thus set out to find these non-canonical genes through bibliographic research and create a tool that will allow users to identify which genes of a human gene set may be genes that have non-canonical functions.
+
+Additionally, this tool has several other applications. The tool allows users to perform a different gene expression analysis using a negative binomial distribution. In order to do so, the tool implements the DESeq2 R package \cite{love2014moderated}. This aspect of the tool can only be done using COUNT data  from RNA sequencing. Initially this method was selected as it allows users to exploit data from the TCGA (The Cancer Genome Atlas) database, which amasses large quantities of RNAseq files for patients of various cancers.
+
+By pairing this package with our tool, we allow users to identify significant genes from differential analyses and we then look for potential non-canonical genes from the list of isolated significant genes. Additionally, users will have the option to customize MA plots and volcano plots to best suit their publishing needs.
+
+When the tool identifies potential non-canonical genes, the user will be provided with a brief explanation of the canonical pathway that this gene affects along with it's location in the human body, and the same information is given for non-canonical pathways. The tool will also provide any references that have been associated to these genes within our database.
+
+\section{Installation \label{installation}}
+\subsection{quick description}
+This tool is split into two components, one is the application and processing power, this functional aspect of the tool is downloaded on the users computer and run as a program. The program's interface will then allow users to connect to a database, this database is hosted on the Cellomet website. The database contains all of the information pertaining to non-canonical genes that we have acquired. Once connected to the database, the tool will interact with the users files as indicated by the user and utilize the processing power of the users computer to run the various analyses. This choice was made to prevent a surcharge of a servers processing power, however it is not without consequence.
+The DESeq2 package can be heavy on processing power, this is of course dependent on the size of the files given to it. The processing power of a given computer will affect the speed at which analyses are performed.Lastly, as a database connection is required, users must be connected to the internet in order to use the non-canonical analysis aspect of this tool.
+
+\subsection{Downloading the tool \label{download_tool}}
+Difference MAC and Windows
+\subsection{Connecting to the database \label{connect_DB}}
+Just a quick explanation
+
+\section{How to use tool}
+Will be a quick overview of the tool without going into details, simply explain how to navigate it and what not.
+
+\section{Non-canonical analysis \label{ncan_analysis}}
+This simple analysis is the innovative side of this tool, however it is very simple to use. If a user runs a DESeq2 analysis, a non-canonical analysis will automatically be performed on the isolated significant genes. Alternatively, a user can input a gene list file which will be analyzed.
+The gene list file is very simple in format, it can be seen in \autoref{fig:custom_gene_list}. This file can be created as a text file, but must be converted into a csv file before using it for the analysis. This is very simple to do, one must just rename the file from .txt to .csv.
+
+\begin{figure}[h!]
+\centering
+\fbox{\includegraphics[width=10cm,height=5cm,keepaspectratio]{custom_gene_list.png}}
+\caption{An example of a custom gene list}
+\label{fig:custom_gene_list}
+\end{figure}
+
+The results for this analysis, be it via a custom list or a DESeq2 analysis, is always presented as three separate text files.
+\begin{enumerate}
+\item non\_canonic\_results.txt
+\item canonic\_results.txt
+\item references.txt
+
+These files each contain the gene name and gene symbol of identified non-canonical genes in the dataset provided by the user along with information regarding those genes. The information varies based on which file it is contained in.
+
+These text files have been designed to be able to be read by microsoft excel. To do so, a user should open the text file with microsoft excel and select tabs (\textbackslash t) as the separator. This will ensure proper delimitation of the various information contained in the text files.
+Also, these results can be viewed within the tool in the results tab. These results are only p69*esent after and analysis is done and will not be present if the application is closed or if another analysis is run afterwards. However, files are automatically saved on the users computer, it is not necessary to go through the results tab to save this information.
+\end{enumerate}
+
+\section{DESeq2 \label{DESeq2}}
+The DESeq2 analysis is a powerfull tool allowing a user to perform differential analyses on large quantities of patient files all while customizing the two conditions of the differential analysis. This type of analysis is very picky about the data type and format used. These are the requirements of the data.
+\begin{itemize}
+\item The data must be in COUNTS format
+\item The data format must be as seen in \autoref{fig:data_format_deseq2}.
+This means that the data must be in csv format, have the gene names as the row headers and patient or sample names as column headers.
+CSV files can sometimes be difficult to understand, thus a brief explanation will be given. CSV stands for comma separated vector, this means that a vector (list of elements/values) are separated by commas. One can see a comma as a column delimitation, in the case of \autoref{fig:data_format_deseq2}, if we look at the TSPAN6 row, we see numerous values separated by commas, above this row we see two patient IDs as only two commas are present. This means that the first patient ID would have a  value of 4280 for the TSPAN6 gene and the second patient would have a value of 5096 for the same gene. The values following these are values for other patients that are not seen in the figure.
+
+\begin{figure}[h!]
+\centering
+\fbox{\includegraphics[width=10cm,height=5cm,keepaspectratio]{data_format_deseq2.png}}
+\caption{Data format for a DESeq2 file.}
+\label{fig:data_format_deseq2}
+\end{figure}
+
+\item Gene names must be in gene symbol format
+If this section is not respected, a complete DESeq2 analysis will still be performed, however no non-canonic genes will be identified as the data base finds non-canonic genes via their gene symbols. As an example, the data base will not recognize Hexokinase2 as being a non-canonic gene, but it will recognize HK2.
+\item Two files must be used, each representing a different condition
+This is the basis of the differential analysis, DESeq2 will take in two files with n number of patient genomes. However these files must be split into their respective categories before being inputed into the analysis tool. As an example, one would have a file with all cancer patients between the age of 10 and 50, and a second file for patients of the same cancer but that are between the ages of 70 and 99, This would result in a differential analysis of young vs old.
+\end{itemize}
+With the two files in the proper format, the user must only select the folder in which he will want to store the results of the analysis. The user will also be able to name his two conditions which will be automatically added to the names of the results created by the analysis. Additionally, a user can choose to create standard MA and Volcano plots, this said, a user will also be able to create custom MA and Volcano plots after a DESeq2 analysis has been finished see section \ref{cus_figures} of this guide.
+Before a user can launch an analysis, he will have to connect to the database, this can be done by following the simple steps in the 'Connect to Database' tab of the tool, also talked about in section \ref{connect_DB} of this guide.
+Once the analysis has been launched, the user will be prompted to wait until the analysis is over. A notification in the form of a pop up message will be given to user user once the analysis has either finished or if an error has occurred. While the analysis is running, a user should not use the tool and let it work. The user can however continue to use the computer provided the processing power of the computer can handle several things at once.
+                     
+\section{Customizable figures \label{cus_figures}}
 
 
 

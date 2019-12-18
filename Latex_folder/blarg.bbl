@@ -1,0 +1,31 @@
+\begin{thebibliography}{}
+
+\bibitem [\protect \citeauthoryear {%
+Love%
+, Huber%
+\BCBL {}\ \BBA {} Anders%
+}{%
+Love%
+\ \protect \BOthers {.}}{%
+{\protect \APACyear {2014}}%
+}]{%
+love2014moderated}
+\APACinsertmetastar {%
+love2014moderated}%
+\begin{APACrefauthors}%
+Love, M\BPBI I.%
+, Huber, W.%
+\BCBL {}\ \BBA {} Anders, S.%
+\end{APACrefauthors}%
+\unskip\
+\newblock
+\APACrefYearMonthDay{2014}{}{}.
+\newblock
+{\BBOQ}\APACrefatitle {Moderated estimation of fold change and dispersion for
+  RNA-seq data with DESeq2} {Moderated estimation of fold change and dispersion
+  for rna-seq data with deseq2}.{\BBCQ}
+\newblock
+\APACjournalVolNumPages{Genome biology}{15}{12}{550}.
+\PrintBackRefs{\CurrentBib}
+
+\end{thebibliography}
